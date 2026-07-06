@@ -14,7 +14,7 @@ from backend.app.models.electrical_model import ElectricalInputs, ElectricalMode
 from backend.app.models.encoder_model import EncoderConfig, EncoderInputs, EncoderModel, EncoderOutputs
 from backend.app.models.hall_sensor_model import HallSensorConfig, HallSensorInputs, HallSensorModel, HallSensorOutputs
 from backend.app.models.inverter_model import InverterInputs, InverterModel
-from backend.app.models.mechanical_model import MechanicalInputs, MechanicalModel, MechanicalOutputs
+from backend.app.models.mechanical_model import MechanicalInputs, MechanicalModel, MechanicalOutputs, MechanicalState
 from backend.app.models.motor_parameters import MotorParameters
 from backend.app.serial.protocol import TelemetryPacket, TwinStatePacket
 
@@ -26,6 +26,7 @@ class TwinEngineError(ValueError):
 @dataclass(frozen=True)
 class TwinEngineConfig:
     SampleRateHz: int = 1000
+    StartupMechanicalAngle: float = 0.01
     HallTransitionTime: float = 0.0
     EncoderTransitionTime: float = 0.0
     CurrentFilterAlpha: float = 1.0
@@ -46,6 +47,7 @@ class TwinEngineConfig:
         if self.EncoderPPR <= 0:
             raise TwinEngineError("EncoderPPR must be greater than 0")
         for name, value in (
+            ("StartupMechanicalAngle", self.StartupMechanicalAngle),
             ("HallTransitionTime", self.HallTransitionTime),
             ("EncoderTransitionTime", self.EncoderTransitionTime),
             ("CurrentFilterAlpha", self.CurrentFilterAlpha),
@@ -166,14 +168,31 @@ class TwinSimulationEngine:
         )
         self.torque_estimator = torque_estimator or TorqueEstimator()
         self.step_index = 0
+        self._prime_mechanical_state()
 
     def reset(self) -> None:
         self.electrical_model.reset()
-        self.mechanical_model.reset()
+        self._prime_mechanical_state()
         self.hall_model.reset()
         self.encoder_model.reset()
         self.current_sensor_model.reset(seed=self.config.RandomSeed)
         self.step_index = 0
+
+    def _prime_mechanical_state(self) -> None:
+        """
+        Initialize the rotor with a tiny deterministic offset.
+
+        A motor twin that starts at exactly zero electrical phase and is driven by
+        symmetric phase commands can remain stuck at a zero-torque equilibrium.
+        The offset breaks that symmetry while keeping the simulation deterministic.
+        """
+
+        self.mechanical_model.reset(
+            MechanicalState(
+                Speed=0.0,
+                MechanicalAngle=float(self.config.StartupMechanicalAngle),
+            )
+        )
 
     def step(self, telemetry: TelemetryPacket) -> TwinStepResult:
         self._validate_telemetry(telemetry)

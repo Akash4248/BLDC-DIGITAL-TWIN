@@ -3,23 +3,23 @@ import { createTheme } from '@mui/material/styles'
 export const darkTheme = createTheme({
   palette: {
     mode: 'dark',
-    primary: { main: '#6EE7F9' },
-    secondary: { main: '#FFB86B' },
+    primary: { main: '#C98B4D' },
+    secondary: { main: '#B7C1C8' },
     background: {
-      default: '#081015',
-      paper: '#0D171D',
+      default: '#070B0E',
+      paper: '#0D1216',
     },
     text: {
-      primary: '#E7F1F6',
-      secondary: '#86A4B2',
+      primary: '#E8EDF1',
+      secondary: '#94A2AC',
     },
-    success: { main: '#5FD38A' },
-    warning: { main: '#FFB347' },
-    error: { main: '#FF6B6B' },
+    success: { main: '#B7C1C8' },
+    warning: { main: '#D69A55' },
+    error: { main: '#FF6A4D' },
   },
   typography: {
     fontFamily:
-      '"IBM Plex Sans", "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif',
+      '"IBM Plex Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif',
     h4: {
       fontWeight: 700,
       letterSpacing: '-0.03em',
@@ -48,7 +48,7 @@ export const darkTheme = createTheme({
     MuiCard: {
       styleOverrides: {
         root: {
-          border: '1px solid rgba(126, 210, 233, 0.12)',
+          border: '1px solid rgba(201, 139, 77, 0.12)',
           boxShadow: '0 18px 60px rgba(0, 0, 0, 0.35)',
           backdropFilter: 'blur(10px)',
         },
@@ -73,4 +73,3 @@ export const darkTheme = createTheme({
     },
   },
 })
-

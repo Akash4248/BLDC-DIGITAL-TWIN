@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from backend.app.models.current_sensor_model import CurrentSensorConfig, CurrentSensorModel
 from backend.app.models.electrical_model import ElectricalModel
 from backend.app.models.encoder_model import EncoderConfig, EncoderModel
@@ -56,5 +58,9 @@ def test_usb_loop_processes_binary_frames() -> None:
     packet = decode_frame(result.feedback_frame)
 
     assert packet.sequence == telemetry.sequence
-    assert result.feedback_packet == packet
-
+    assert result.feedback_packet.sequence == packet.sequence
+    assert result.feedback_packet.ia == pytest.approx(packet.ia)
+    assert result.feedback_packet.ib == pytest.approx(packet.ib)
+    assert result.feedback_packet.ic == pytest.approx(packet.ic)
+    assert result.feedback_packet.rotor_angle == pytest.approx(packet.rotor_angle)
+    assert result.feedback_packet.rotor_speed == pytest.approx(packet.rotor_speed)

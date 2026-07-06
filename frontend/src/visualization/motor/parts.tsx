@@ -7,13 +7,13 @@ import type { MotorViewMode } from './modelMapper'
 import type { HoverTarget } from './types'
 import type { RefObject } from 'react'
 
-const MOTOR_MODEL_URL = '/models/electric_motor.glb'
+const MOTOR_MODEL_URL = '/models/dji_phantom_4_bldc_motor.glb'
 
 useGLTF.preload(MOTOR_MODEL_URL)
 
 type HoverCallback = (target: HoverTarget | null, position?: [number, number, number]) => void
 
-function hoverMaterial(color = '#6EE7F9') {
+function hoverMaterial(color = '#b6c2cb') {
   return (
     <meshStandardMaterial
       color={color}
@@ -52,12 +52,12 @@ export function CameraController({ controlsRef }: { controlsRef: RefObject<any> 
 export function Lighting() {
   return (
     <>
-      <color attach="background" args={['#061018']} />
-      <ambientLight intensity={0.7} color="#b7d7e6" />
-      <directionalLight position={[6, 8, 5]} intensity={2.7} color="#f3f7fb" castShadow shadow-mapSize={[2048, 2048]} />
-      <directionalLight position={[-5, 3, -4]} intensity={1.2} color="#6EE7F9" />
-      <pointLight position={[0, 4, 3]} intensity={0.8} color="#FFB86B" distance={18} />
-      <hemisphereLight intensity={0.45} groundColor="#071218" color="#cce8ff" />
+      <color attach="background" args={['#080c10']} />
+      <ambientLight intensity={0.85} color="#c3ccd4" />
+      <directionalLight position={[6, 8, 5]} intensity={3} color="#f3f7fb" castShadow shadow-mapSize={[2048, 2048]} />
+      <directionalLight position={[-5, 3, -4]} intensity={1.0} color="#c98b4d" />
+      <pointLight position={[0, 4, 3]} intensity={0.55} color="#b9c4cb" distance={18} />
+      <hemisphereLight intensity={0.38} groundColor="#0f1418" color="#d5dde3" />
     </>
   )
 }
@@ -74,7 +74,7 @@ export function Ground() {
           blur={[500, 120]}
           minDepthThreshold={0.75}
           maxDepthThreshold={1.4}
-          color="#071017"
+          color="#0a0f13"
           metalness={0.25}
           roughness={0.78}
         />
@@ -85,8 +85,8 @@ export function Ground() {
         fadeStrength={3}
         cellSize={0.45}
         sectionSize={2.25}
-        cellColor="#12303a"
-        sectionColor="#1b5563"
+        cellColor="#1a2329"
+        sectionColor="#2d363d"
       />
     </group>
   )
@@ -109,7 +109,7 @@ export function Rotor({ state, onHover, mode }: { state: MotorState; onHover: Ho
     <group ref={group}>
       <mesh castShadow receiveShadow>
         <cylinderGeometry args={[0.84, 0.84, 2.36, 48]} />
-        <meshStandardMaterial color="#0a1116" metalness={0.94} roughness={0.14} />
+        <meshStandardMaterial color="#141a1f" metalness={0.94} roughness={0.14} />
       </mesh>
       {magnetAngles.map((angle, index) => {
         const x = Math.cos(angle) * 0.74
@@ -119,8 +119,8 @@ export function Rotor({ state, onHover, mode }: { state: MotorState; onHover: Ho
           <mesh key={angle} position={[x, 0, z]} rotation={[0, -angle, 0]} castShadow>
             <boxGeometry args={[0.16, 0.34, 0.07]} />
             <meshStandardMaterial
-              color={positive ? '#7fdff1' : '#d28c46'}
-              emissive={positive ? '#6EE7F9' : '#FFB86B'}
+              color={positive ? '#b9c4cb' : '#c98b4d'}
+              emissive={positive ? '#b9c4cb' : '#c98b4d'}
               emissiveIntensity={magnetStrength}
               metalness={0.18}
               roughness={0.3}
@@ -138,7 +138,7 @@ export function Rotor({ state, onHover, mode }: { state: MotorState; onHover: Ho
         onPointerOut={() => onHover(null)}
       >
         <cylinderGeometry args={[0.88, 0.88, 2.42, 48]} />
-        {hoverMaterial('#6EE7F9')}
+        {hoverMaterial('#b6c2cb')}
       </mesh>
     </group>
   )
@@ -158,7 +158,7 @@ export function Shaft({ state, onHover, mode }: { state: MotorState; onHover: Ho
     <group ref={shaft}>
       <mesh castShadow receiveShadow>
         <cylinderGeometry args={[0.12, 0.12, 3.6, 28]} />
-        <meshStandardMaterial color="#aeb8bf" metalness={0.92} roughness={0.13} />
+        <meshStandardMaterial color="#d7dde2" metalness={0.92} roughness={0.13} />
       </mesh>
       <mesh
         onPointerOver={(event) => {
@@ -168,7 +168,7 @@ export function Shaft({ state, onHover, mode }: { state: MotorState; onHover: Ho
         onPointerOut={() => onHover(null)}
       >
         <cylinderGeometry args={[0.18, 0.18, 3.7, 28]} />
-        {hoverMaterial('#8dcff2')}
+        {hoverMaterial('#b6c2cb')}
       </mesh>
     </group>
   )
@@ -213,7 +213,7 @@ export function Bearing({
         onPointerOut={() => onHover(null)}
       >
         <cylinderGeometry args={[0.38, 0.38, 0.24, 40]} />
-        {hoverMaterial('#8dcff2')}
+        {hoverMaterial('#b6c2cb')}
       </mesh>
     </group>
   )
@@ -238,8 +238,8 @@ function WindingArc({
 }) {
   const polarity = current >= 0 ? 1 : -1
   const magnitude = Math.min(1, Math.abs(current) / 12)
-  const emissive = polarity > 0 ? '#6EE7F9' : '#FFB86B'
-  const baseColor = magnitude < 0.08 ? '#51626b' : color
+  const emissive = polarity > 0 ? '#b8c9d6' : '#c98b4d'
+  const baseColor = magnitude < 0.08 ? '#5c6970' : color
 
   return (
     <group rotation={[0, angle, Math.PI / 2]}>
@@ -292,12 +292,12 @@ export function Windings({ state, onHover, mode }: { state: MotorState; onHover:
 
   return (
     <group ref={group} position={[0, 0, 0]}>
-      <WindingArc radius={1.22} angle={0} color="#6EE7F9" current={state.ia} label="phaseA" onHover={onHover} target="phaseA" />
-      <WindingArc radius={1.22} angle={(2 * Math.PI) / 3} color="#FFB86B" current={state.ib} label="phaseB" onHover={onHover} target="phaseB" />
-      <WindingArc radius={1.22} angle={(4 * Math.PI) / 3} color="#5FD38A" current={state.ic} label="phaseC" onHover={onHover} target="phaseC" />
+      <WindingArc radius={1.22} angle={0} color="#b8c9d6" current={state.ia} label="phaseA" onHover={onHover} target="phaseA" />
+      <WindingArc radius={1.22} angle={(2 * Math.PI) / 3} color="#c98b4d" current={state.ib} label="phaseB" onHover={onHover} target="phaseB" />
+      <WindingArc radius={1.22} angle={(4 * Math.PI) / 3} color="#9ba7b1" current={state.ic} label="phaseC" onHover={onHover} target="phaseC" />
       <mesh castShadow receiveShadow>
         <cylinderGeometry args={[1.52, 1.52, 2.85, 64, 1, true]} />
-        <meshStandardMaterial color="#20313a" metalness={0.22} roughness={0.74} transparent opacity={0.72} side={THREE.DoubleSide} />
+        <meshStandardMaterial color="#273138" metalness={0.22} roughness={0.74} transparent opacity={0.72} side={THREE.DoubleSide} />
       </mesh>
     </group>
   )
@@ -337,9 +337,9 @@ export function CurrentFlow({ state }: { state: MotorState }) {
   const mag = Math.min(1, Math.max(Math.abs(state.ia), Math.abs(state.ib), Math.abs(state.ic)) / 12)
   return (
     <group position={[0, 0, 0]}>
-      <PulseDot angle={0} radius={1.13} speed={1.8 + mag * 0.5} color={state.ia >= 0 ? '#6EE7F9' : '#FFB86B'} />
-      <PulseDot angle={2} radius={1.13} speed={1.6 + mag * 0.4} color={state.ib >= 0 ? '#6EE7F9' : '#FFB86B'} />
-      <PulseDot angle={4} radius={1.13} speed={1.7 + mag * 0.45} color={state.ic >= 0 ? '#5FD38A' : '#FFB86B'} />
+      <PulseDot angle={0} radius={1.13} speed={1.8 + mag * 0.5} color={state.ia >= 0 ? '#b8c9d6' : '#c98b4d'} />
+      <PulseDot angle={2} radius={1.13} speed={1.6 + mag * 0.4} color={state.ib >= 0 ? '#c98b4d' : '#b8c9d6'} />
+      <PulseDot angle={4} radius={1.13} speed={1.7 + mag * 0.45} color={state.ic >= 0 ? '#9ba7b1' : '#c98b4d'} />
     </group>
   )
 }
@@ -363,8 +363,8 @@ export function MagneticField({ state, onHover }: { state: MotorState; onHover: 
           <mesh key={angle} position={[x, 0.02 * Math.sin(angle * 3), z]} rotation={[0, -angle, 0]} castShadow>
             <torusGeometry args={[0.38, 0.018, 10, 42, Math.PI * 0.95]} />
             <meshStandardMaterial
-              color={index % 2 === 0 ? '#6EE7F9' : '#FFB86B'}
-              emissive={index % 2 === 0 ? '#6EE7F9' : '#FFB86B'}
+              color={index % 2 === 0 ? '#b8c9d6' : '#c98b4d'}
+              emissive={index % 2 === 0 ? '#b8c9d6' : '#c98b4d'}
               emissiveIntensity={0.14 + strength * 0.6}
               transparent
               opacity={0.95}
@@ -380,7 +380,7 @@ export function MagneticField({ state, onHover }: { state: MotorState; onHover: 
         onPointerOut={() => onHover(null)}
       >
         <torusGeometry args={[1.78, 0.12, 18, 64]} />
-        {hoverMaterial('#6EE7F9')}
+        {hoverMaterial('#b6c2cb')}
       </mesh>
     </group>
   )
@@ -400,13 +400,13 @@ export function TorqueArrow({ state }: { state: MotorState }) {
     <group ref={group} position={[0, 1.72, 0]}>
       <mesh castShadow>
         <cylinderGeometry args={[0.045, 0.045, length, 12]} />
-        <meshStandardMaterial color="#FFB86B" emissive="#FFB86B" emissiveIntensity={1.2} />
+        <meshStandardMaterial color="#c98b4d" emissive="#c98b4d" emissiveIntensity={1.15} />
       </mesh>
       <mesh position={[0, length / 2 + 0.12, 0]} castShadow>
         <coneGeometry args={[0.14, 0.22, 12]} />
-        <meshStandardMaterial color="#FFB86B" emissive="#FFB86B" emissiveIntensity={1.3} />
+        <meshStandardMaterial color="#c98b4d" emissive="#c98b4d" emissiveIntensity={1.25} />
       </mesh>
-      <Text position={[0, 0.2, 0]} fontSize={0.1} color="#ffddb7" anchorX="center" anchorY="bottom">
+      <Text position={[0, 0.2, 0]} fontSize={0.1} color="#e6e0d4" anchorX="center" anchorY="bottom">
         Torque
       </Text>
     </group>
@@ -415,9 +415,9 @@ export function TorqueArrow({ state }: { state: MotorState }) {
 
 export function HallIndicators({ state, onHover }: { state: MotorState; onHover: HoverCallback }) {
   const leds = [
-    { label: 'HA', active: state.hallState.a > 0, color: '#6EE7F9', pos: [-1.95, 1.1, 0.55] as [number, number, number] },
-    { label: 'HB', active: state.hallState.b > 0, color: '#FFB86B', pos: [-1.95, 0.92, 0] as [number, number, number] },
-    { label: 'HC', active: state.hallState.c > 0, color: '#5FD38A', pos: [-1.95, 1.1, -0.55] as [number, number, number] },
+    { label: 'HA', active: state.hallState.a > 0, color: '#b8c9d6', pos: [-1.95, 1.1, 0.55] as [number, number, number] },
+    { label: 'HB', active: state.hallState.b > 0, color: '#c98b4d', pos: [-1.95, 0.92, 0] as [number, number, number] },
+    { label: 'HC', active: state.hallState.c > 0, color: '#9ba7b1', pos: [-1.95, 1.1, -0.55] as [number, number, number] },
   ]
 
   return (
@@ -430,7 +430,7 @@ export function HallIndicators({ state, onHover }: { state: MotorState; onHover:
         onPointerOut={() => onHover(null)}
       >
         <torusGeometry args={[1.95, 0.055, 12, 36]} />
-        {hoverMaterial('#6EE7F9')}
+        {hoverMaterial('#b6c2cb')}
       </mesh>
       {leds.map((led) => (
         <group key={led.label} position={led.pos}>
@@ -445,7 +445,7 @@ export function HallIndicators({ state, onHover }: { state: MotorState; onHover:
             />
           </mesh>
           <Html position={[0.18, 0, 0]} center>
-            <div style={{ color: '#d7e9f2', fontSize: 10, letterSpacing: '0.14em' }}>{led.label}</div>
+        <div style={{ color: '#d7dde2', fontSize: 10, letterSpacing: '0.14em' }}>{led.label}</div>
           </Html>
         </group>
       ))}
@@ -466,7 +466,7 @@ export function Encoder({ state, onHover }: { state: MotorState; onHover: HoverC
     <group ref={group} position={[0, 0, 1.72]}>
       <mesh castShadow receiveShadow>
         <cylinderGeometry args={[0.28, 0.28, 0.14, 48]} />
-        <meshStandardMaterial color="#101a20" metalness={0.75} roughness={0.24} />
+        <meshStandardMaterial color="#12181d" metalness={0.75} roughness={0.24} />
       </mesh>
       {Array.from({ length: pulseCount }, (_, index) => {
         const angle = (index / pulseCount) * Math.PI * 2
@@ -476,9 +476,9 @@ export function Encoder({ state, onHover }: { state: MotorState; onHover: HoverC
           <mesh key={angle} position={[x, y, 0.09]} rotation={[0, 0, angle]} castShadow>
             <boxGeometry args={[0.025, 0.07, 0.01]} />
             <meshStandardMaterial
-              color={index % 4 === 0 ? '#6EE7F9' : '#27424d'}
-              emissive="#6EE7F9"
-              emissiveIntensity={index % 4 === 0 ? 0.95 : 0.1}
+              color={index % 4 === 0 ? '#b8c9d6' : '#2b353b'}
+              emissive="#b8c9d6"
+              emissiveIntensity={index % 4 === 0 ? 0.9 : 0.08}
             />
           </mesh>
         )
@@ -491,10 +491,10 @@ export function Encoder({ state, onHover }: { state: MotorState; onHover: HoverC
         onPointerOut={() => onHover(null)}
       >
         <cylinderGeometry args={[0.42, 0.42, 0.2, 48]} />
-        {hoverMaterial('#6EE7F9')}
+        {hoverMaterial('#b6c2cb')}
       </mesh>
       <Html position={[0.54, 0.22, 0]} center>
-        <div style={{ color: '#9edbf1', fontSize: 10, letterSpacing: '0.14em' }}>
+        <div style={{ color: '#d7dde2', fontSize: 10, letterSpacing: '0.14em' }}>
           {state.encoderPosition}
         </div>
       </Html>
@@ -556,11 +556,11 @@ export function BaseMotorShell({
     <group position={[0, 0, 0]}>
       <mesh castShadow receiveShadow>
         <cylinderGeometry args={[1.88, 1.88, 3.18, 72]} />
-        <meshStandardMaterial color="#10191f" metalness={0.95} roughness={0.3} />
+        <meshStandardMaterial color="#10161a" metalness={0.95} roughness={0.3} />
       </mesh>
       <mesh castShadow receiveShadow>
         <cylinderGeometry args={[1.6, 1.6, 2.82, 72]} />
-        <meshStandardMaterial color="#26343c" metalness={0.22} roughness={0.7} transparent opacity={0.88} side={THREE.DoubleSide} />
+        <meshStandardMaterial color="#273239" metalness={0.22} roughness={0.7} transparent opacity={0.88} side={THREE.DoubleSide} />
       </mesh>
       <mesh
         onPointerOver={(event) => {
@@ -570,7 +570,7 @@ export function BaseMotorShell({
         onPointerOut={() => onHover(null)}
       >
         <cylinderGeometry args={[1.7, 1.7, 3.0, 72, 1, true]} />
-        {hoverMaterial('#6EE7F9')}
+        {hoverMaterial('#b6c2cb')}
       </mesh>
       <mesh
         onPointerOver={(event) => {
@@ -580,9 +580,9 @@ export function BaseMotorShell({
         onPointerOut={() => onHover(null)}
       >
         <cylinderGeometry args={[1.96, 1.96, 3.28, 72, 1, true]} />
-        {hoverMaterial('#8b9ca8')}
+        {hoverMaterial('#b1b8bd')}
       </mesh>
-      <Text position={[0, 2.22, 0]} fontSize={0.13} color="#b2d8ea" anchorX="center" anchorY="middle">
+      <Text position={[0, 2.22, 0]} fontSize={0.13} color="#d5dde2" anchorX="center" anchorY="middle">
         BLDC / PMSM Digital Twin
       </Text>
     </group>
@@ -596,9 +596,9 @@ export function MotorAsset() {
 
 function temperatureColor(temperature: number) {
   const normalized = THREE.MathUtils.clamp((temperature - 35) / 75, 0, 1)
-  const cold = new THREE.Color('#4aa3ff')
-  const warm = new THREE.Color('#f6a04d')
-  const hot = new THREE.Color('#ff4d4d')
+  const cold = new THREE.Color('#7f8f9a')
+  const warm = new THREE.Color('#c58b53')
+  const hot = new THREE.Color('#ff6a4d')
   if (normalized < 0.55) {
     return cold.clone().lerp(warm, normalized / 0.55)
   }
@@ -655,12 +655,12 @@ export function PwmIndicators({
   pwm: MotorState['pwm']
 }) {
   const items = [
-    { label: 'AH', key: 'ah' as const, color: '#6EE7F9' },
-    { label: 'AL', key: 'al' as const, color: '#94a3b8' },
-    { label: 'BH', key: 'bh' as const, color: '#FFB86B' },
-    { label: 'BL', key: 'bl' as const, color: '#94a3b8' },
-    { label: 'CH', key: 'ch' as const, color: '#5FD38A' },
-    { label: 'CL', key: 'cl' as const, color: '#94a3b8' },
+    { label: 'AH', key: 'ah' as const, color: '#b8c9d6' },
+    { label: 'AL', key: 'al' as const, color: '#87939c' },
+    { label: 'BH', key: 'bh' as const, color: '#c98b4d' },
+    { label: 'BL', key: 'bl' as const, color: '#87939c' },
+    { label: 'CH', key: 'ch' as const, color: '#9ba7b1' },
+    { label: 'CL', key: 'cl' as const, color: '#87939c' },
   ]
 
   return (
@@ -674,7 +674,7 @@ export function PwmIndicators({
             <mesh castShadow>
               <sphereGeometry args={[0.06, 18, 18]} />
               <meshStandardMaterial
-                color={intensity > 0.5 ? item.color : '#20313a'}
+                color={intensity > 0.5 ? item.color : '#2a3339'}
                 emissive={item.color}
                 emissiveIntensity={intensity * 2.0}
                 metalness={0.15}
@@ -682,7 +682,7 @@ export function PwmIndicators({
               />
             </mesh>
             <Html position={[0.16, 0, 0]} center>
-              <div style={{ color: '#d8edf8', fontSize: 10, letterSpacing: '0.16em' }}>{item.label}</div>
+        <div style={{ color: '#d8dee4', fontSize: 10, letterSpacing: '0.16em' }}>{item.label}</div>
             </Html>
           </group>
         )

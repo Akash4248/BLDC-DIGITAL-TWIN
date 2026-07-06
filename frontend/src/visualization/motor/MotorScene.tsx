@@ -48,9 +48,9 @@ export function MotorScene({ snapshot }: MotorSceneProps) {
         height: '100%',
         borderRadius: 4,
         overflow: 'hidden',
-        border: '1px solid rgba(110,231,249,0.08)',
+        border: '1px solid rgba(201,139,77,0.12)',
         background:
-          'radial-gradient(circle at 50% 28%, rgba(110,231,249,0.12), transparent 35%), linear-gradient(180deg, rgba(5,12,16,0.96), rgba(6,11,15,0.98))',
+          'radial-gradient(circle at 50% 28%, rgba(201,139,77,0.10), transparent 35%), linear-gradient(180deg, rgba(5,9,12,0.96), rgba(7,10,13,0.99))',
       }}
       onDoubleClick={resetView}
     >
@@ -62,9 +62,9 @@ export function MotorScene({ snapshot }: MotorSceneProps) {
           camera={{ position: [4.8, 2.8, 4.8], fov: 35, near: 0.1, far: 100 }}
           onCreated={({ gl, scene }) => {
             gl.toneMapping = THREE.ACESFilmicToneMapping
-            gl.toneMappingExposure = 1.2
+            gl.toneMappingExposure = 1.35
             gl.shadowMap.enabled = true
-            scene.fog = new THREE.Fog('#061018', 8, 22)
+            scene.fog = new THREE.Fog('#081015', 8, 22)
           }}
         >
           <Lighting />
@@ -73,7 +73,7 @@ export function MotorScene({ snapshot }: MotorSceneProps) {
             <Environment preset="warehouse" />
             <Ground />
             <MotorModel state={snapshot} mode={mode} />
-            <ContactShadows opacity={0.42} scale={10} blur={2.4} far={4.8} resolution={1024} color="#081118" />
+            <ContactShadows opacity={0.34} scale={10} blur={2.4} far={4.8} resolution={1024} color="#0a0f13" />
           </Suspense>
         </Canvas>
       </ErrorBoundary>
@@ -99,12 +99,12 @@ export function MotorScene({ snapshot }: MotorSceneProps) {
             backdropFilter: 'blur(12px)',
             borderRadius: 2,
             '& .MuiToggleButton-root': {
-              color: '#a4bac8',
-              borderColor: 'rgba(110,231,249,0.12)',
+              color: '#b7c1c8',
+              borderColor: 'rgba(201,139,77,0.12)',
             },
             '& .Mui-selected': {
-              color: '#dff8ff !important',
-              bgcolor: 'rgba(110,231,249,0.12) !important',
+              color: '#f0ece6 !important',
+              bgcolor: 'rgba(201,139,77,0.12) !important',
             },
           }}
         >
@@ -153,7 +153,7 @@ export function MotorScene({ snapshot }: MotorSceneProps) {
           px: 1.5,
           py: 1,
           background: 'rgba(7,16,22,0.72)',
-          border: '1px solid rgba(110,231,249,0.1)',
+          border: '1px solid rgba(201,139,77,0.10)',
           backdropFilter: 'blur(12px)',
         }}
       >

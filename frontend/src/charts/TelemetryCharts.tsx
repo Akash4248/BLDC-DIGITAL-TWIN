@@ -56,7 +56,7 @@ const commonLayout = {
   margin: { l: 42, r: 16, t: 20, b: 38 },
   paper_bgcolor: 'rgba(0,0,0,0)',
   plot_bgcolor: 'rgba(0,0,0,0)',
-  font: { color: '#B6C8D2' },
+  font: { color: '#B9C3CA' },
   xaxis: { gridcolor: 'rgba(255,255,255,0.06)', zeroline: false },
   yaxis: { gridcolor: 'rgba(255,255,255,0.06)', zeroline: false },
   legend: { orientation: 'h' as const, y: 1.15 },
@@ -72,7 +72,7 @@ export function TelemetryCharts({ history }: TelemetryChartsProps) {
       type: 'scatter',
       mode: 'lines',
       name: 'Ia',
-      line: { color: '#6EE7F9', width: 2 },
+      line: { color: '#D1D7DC', width: 2 },
     },
     {
       x,
@@ -80,7 +80,7 @@ export function TelemetryCharts({ history }: TelemetryChartsProps) {
       type: 'scatter',
       mode: 'lines',
       name: 'Ib',
-      line: { color: '#FFB86B', width: 2 },
+      line: { color: '#C98B4D', width: 2 },
     },
     {
       x,
@@ -88,7 +88,7 @@ export function TelemetryCharts({ history }: TelemetryChartsProps) {
       type: 'scatter',
       mode: 'lines',
       name: 'Ic',
-      line: { color: '#5FD38A', width: 2 },
+      line: { color: '#8E9AA3', width: 2 },
     },
   ]
 
@@ -99,7 +99,7 @@ export function TelemetryCharts({ history }: TelemetryChartsProps) {
       type: 'scatter',
       mode: 'lines',
       name: 'Speed',
-      line: { color: '#6EE7F9', width: 2 },
+      line: { color: '#D1D7DC', width: 2 },
       yaxis: 'y1',
     },
     {
@@ -108,7 +108,7 @@ export function TelemetryCharts({ history }: TelemetryChartsProps) {
       type: 'scatter',
       mode: 'lines',
       name: 'Torque',
-      line: { color: '#FFB86B', width: 2 },
+      line: { color: '#C98B4D', width: 2 },
       yaxis: 'y2',
     },
   ]
@@ -120,7 +120,7 @@ export function TelemetryCharts({ history }: TelemetryChartsProps) {
       type: 'scatter',
       mode: 'lines',
       name: 'Rotor angle',
-      line: { color: '#FFB86B', width: 2 },
+      line: { color: '#C98B4D', width: 2 },
     },
     {
       x,
@@ -128,7 +128,7 @@ export function TelemetryCharts({ history }: TelemetryChartsProps) {
       type: 'scatter',
       mode: 'lines',
       name: 'Duty A',
-      line: { color: '#6EE7F9', width: 2, dash: 'solid' },
+      line: { color: '#D1D7DC', width: 2, dash: 'solid' },
     },
     {
       x,
@@ -136,7 +136,7 @@ export function TelemetryCharts({ history }: TelemetryChartsProps) {
       type: 'scatter',
       mode: 'lines',
       name: 'Duty B',
-      line: { color: '#FFB86B', width: 2, dash: 'dot' },
+      line: { color: '#C98B4D', width: 2, dash: 'dot' },
     },
     {
       x,
@@ -144,7 +144,7 @@ export function TelemetryCharts({ history }: TelemetryChartsProps) {
       type: 'scatter',
       mode: 'lines',
       name: 'Duty C',
-      line: { color: '#5FD38A', width: 2, dash: 'dash' },
+      line: { color: '#8E9AA3', width: 2, dash: 'dash' },
     },
   ]
 
@@ -221,4 +221,3 @@ export function TelemetryCharts({ history }: TelemetryChartsProps) {
     </Stack>
   )
 }
-

@@ -69,3 +69,35 @@ def test_engine_uses_fixed_dt() -> None:
     )
 
     assert engine.dt_s == 0.001
+
+
+def test_asymmetric_phase_commands_produce_motor_like_motion() -> None:
+    params = make_params()
+    engine = TwinSimulationEngine(
+        parameters=params,
+        inverter_model=InverterModel(ModulationMethod.SVPWM),
+        electrical_model=ElectricalModel(params),
+        mechanical_model=MechanicalModel(params),
+        hall_model=HallSensorModel(),
+        encoder_model=EncoderModel(config=EncoderConfig(PPR=1024)),
+        current_sensor_model=CurrentSensorModel(CurrentSensorConfig()),
+        config=TwinEngineConfig(SampleRateHz=1000, RandomSeed=1),
+    )
+
+    result = None
+    for step in range(40):
+        result = engine.step(
+            TelemetryPacket(
+                sequence=step + 1,
+                timestamp_us=1000 * (step + 1),
+                duty_a=0.8,
+                duty_b=0.2,
+                duty_c=0.2,
+                vdc=24.0,
+            )
+        )
+
+    assert result is not None
+    assert result.electromagnetic_torque > 0.0
+    assert result.mechanical.Speed > 0.0
+    assert result.mechanical.MechanicalAngle > engine.config.StartupMechanicalAngle

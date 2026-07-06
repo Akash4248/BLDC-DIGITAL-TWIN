@@ -49,12 +49,12 @@ export function Gauges({ snapshot }: GaugesProps) {
   const temperature = clamp(metrics.temperature, 20, 140)
 
   const gauges = [
-    indicator('RPM', rpm, { min: 0, max: 6000, suffix: ' rpm', color: '#6EE7F9', threshold: 4500 }),
-    indicator('Torque', metrics.torque, { min: 0, max: 10, suffix: ' N·m', color: '#FFB86B', threshold: 8 }),
-    indicator('Voltage', voltage, { min: 0, max: 60, suffix: ' V', color: '#5FD38A', threshold: 48 }),
-    indicator('Current', phaseCurrent, { min: 0, max: 40, suffix: ' A', color: '#6EE7F9', threshold: 32 }),
-    indicator('Efficiency', efficiency, { min: 0, max: 100, suffix: ' %', color: '#5FD38A', threshold: 92 }),
-    indicator('Temperature', temperature, { min: 20, max: 140, suffix: ' °C', color: '#FF6B6B', threshold: 95 }),
+    indicator('RPM', rpm, { min: 0, max: 6000, suffix: ' rpm', color: '#D1D7DC', threshold: 4500 }),
+    indicator('Torque', metrics.torque, { min: 0, max: 10, suffix: ' N·m', color: '#C98B4D', threshold: 8 }),
+    indicator('Voltage', voltage, { min: 0, max: 60, suffix: ' V', color: '#AAB4BC', threshold: 48 }),
+    indicator('Current', phaseCurrent, { min: 0, max: 40, suffix: ' A', color: '#D1D7DC', threshold: 32 }),
+    indicator('Efficiency', efficiency, { min: 0, max: 100, suffix: ' %', color: '#AAB4BC', threshold: 92 }),
+    indicator('Temperature', temperature, { min: 20, max: 140, suffix: ' °C', color: '#FF6A4D', threshold: 95 }),
   ]
 
   return (
@@ -66,7 +66,7 @@ export function Gauges({ snapshot }: GaugesProps) {
               height: 220,
               borderRadius: 3,
               overflow: 'hidden',
-              border: '1px solid rgba(110,231,249,0.1)',
+              border: '1px solid rgba(201,139,77,0.1)',
               background: 'rgba(255,255,255,0.015)',
             }}
           >

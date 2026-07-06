@@ -10,11 +10,11 @@ type MetricTileProps = {
 }
 
 const toneColors: Record<NonNullable<MetricTileProps['tone']>, string> = {
-  primary: '#6EE7F9',
-  secondary: '#FFB86B',
-  success: '#5FD38A',
-  warning: '#FFB347',
-  error: '#FF6B6B',
+  primary: '#D1D7DC',
+  secondary: '#C98B4D',
+  success: '#AAB4BC',
+  warning: '#D69A55',
+  error: '#FF6A4D',
 }
 
 export function MetricTile({ label, value, suffix, tone = 'primary', icon }: MetricTileProps) {
@@ -23,7 +23,7 @@ export function MetricTile({ label, value, suffix, tone = 'primary', icon }: Met
       variant="outlined"
       sx={{
         p: 1.75,
-        borderColor: 'rgba(110, 231, 249, 0.12)',
+        borderColor: 'rgba(201, 139, 77, 0.12)',
         background: 'rgba(255,255,255,0.02)',
       }}
     >
@@ -46,4 +46,3 @@ export function MetricTile({ label, value, suffix, tone = 'primary', icon }: Met
     </Paper>
   )
 }
-

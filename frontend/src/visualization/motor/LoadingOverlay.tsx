@@ -10,7 +10,7 @@ export function LoadingOverlay() {
           width: 280,
           padding: '18px 20px',
           borderRadius: 16,
-          border: '1px solid rgba(110,231,249,0.18)',
+          border: '1px solid rgba(201,139,77,0.18)',
           background: 'rgba(7,16,22,0.9)',
           boxShadow: '0 18px 60px rgba(0,0,0,0.45)',
           color: '#E6F4FA',
@@ -26,8 +26,8 @@ export function LoadingOverlay() {
             style={{
               height: '100%',
               width: `${progress}%`,
-              background: 'linear-gradient(90deg, #6EE7F9, #8B5CF6)',
-              boxShadow: '0 0 18px rgba(110,231,249,0.45)',
+              background: 'linear-gradient(90deg, #d8dde2, #c98b4d)',
+              boxShadow: '0 0 18px rgba(201,139,77,0.35)',
             }}
           />
         </div>
@@ -38,4 +38,3 @@ export function LoadingOverlay() {
     </Html>
   )
 }
-

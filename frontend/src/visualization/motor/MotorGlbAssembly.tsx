@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
-import { Center, useGLTF } from '@react-three/drei'
+import { useGLTF } from '@react-three/drei'
+import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js'
 import type { MotorState } from '../../app/types'
 import { analyzeMotorModel, roleOffset, type MotorMeshDescriptor, type MotorViewMode } from './modelMapper'
 
@@ -21,9 +22,9 @@ type PaletteEntry = {
 
 function temperatureBlend(temperature: number) {
   const normalized = THREE.MathUtils.clamp((temperature - 35) / 80, 0, 1)
-  const cold = new THREE.Color('#1a86ff')
-  const warm = new THREE.Color('#f4a04a')
-  const hot = new THREE.Color('#ff5447')
+  const cold = new THREE.Color('#7f8f9a')
+  const warm = new THREE.Color('#c58b53')
+  const hot = new THREE.Color('#ff6a4d')
   if (normalized < 0.52) {
     return cold.clone().lerp(warm, normalized / 0.52)
   }
@@ -35,59 +36,59 @@ function makeMaterial(role: string, temperature: number): THREE.MeshStandardMate
   switch (role) {
     case 'housing':
       return new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color('#9aa7b3'),
-        metalness: 0.92,
-        roughness: 0.22,
-        clearcoat: 0.4,
-        clearcoatRoughness: 0.28,
-        reflectivity: 0.65,
-        emissive: tempColor.clone().multiplyScalar(0.08),
+        color: new THREE.Color('#d3d8dd'),
+        metalness: 0.98,
+        roughness: 0.16,
+        clearcoat: 0.55,
+        clearcoatRoughness: 0.2,
+        reflectivity: 0.82,
+        emissive: tempColor.clone().multiplyScalar(0.05),
       })
     case 'stator':
       return new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color('#1a252c'),
-        metalness: 0.58,
-        roughness: 0.58,
+        color: new THREE.Color('#46515a'),
+        metalness: 0.52,
+        roughness: 0.54,
         clearcoat: 0.08,
-        emissive: tempColor.clone().multiplyScalar(0.05),
+        emissive: tempColor.clone().multiplyScalar(0.08),
       })
     case 'rotor':
       return new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color('#101820'),
-        metalness: 0.96,
-        roughness: 0.16,
+        color: new THREE.Color('#2c343a'),
+        metalness: 0.98,
+        roughness: 0.14,
         clearcoat: 0.28,
-        emissive: tempColor.clone().multiplyScalar(0.025),
+        emissive: tempColor.clone().multiplyScalar(0.05),
       })
     case 'shaft':
       return new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color('#b8c3cb'),
+        color: new THREE.Color('#edf2f5'),
         metalness: 1,
         roughness: 0.12,
-        reflectivity: 0.7,
+        reflectivity: 0.76,
       })
     case 'bearings':
       return new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color('#7d8991'),
+        color: new THREE.Color('#bcc3c8'),
         metalness: 0.94,
         roughness: 0.16,
       })
     case 'windings':
       return new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color('#c97b31'),
-        metalness: 0.82,
-        roughness: 0.26,
-        emissive: tempColor.clone().multiplyScalar(0.12),
+        color: new THREE.Color('#c98b4d'),
+        metalness: 0.86,
+        roughness: 0.24,
+        emissive: tempColor.clone().multiplyScalar(0.16),
       })
     case 'endcap':
       return new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color('#a4b0b9'),
+        color: new THREE.Color('#d8dce0'),
         metalness: 0.88,
         roughness: 0.24,
       })
     default:
       return new THREE.MeshStandardMaterial({
-        color: new THREE.Color('#31414a'),
+        color: new THREE.Color('#515b62'),
         metalness: 0.5,
         roughness: 0.5,
       })
@@ -105,26 +106,33 @@ function assignRoleMaterial(descriptor: MotorMeshDescriptor, temperature: number
   material.side = descriptor.role === 'housing' || descriptor.role === 'stator' ? THREE.DoubleSide : THREE.FrontSide
   material.clippingPlanes = sectionClipping && plane ? [plane] : null
   material.clipShadows = sectionClipping
+  ;(material as THREE.MeshStandardMaterial & { skinning?: boolean }).skinning = true
   material.needsUpdate = true
   return { material, opacity, clipping: sectionClipping }
 }
 
 export function MotorGlbAssembly({ state, mode, sectionClipping }: MotorGlbAssemblyProps) {
   const { scene } = useGLTF(MOTOR_MODEL_URL) as { scene: THREE.Group }
-  const clonedScene = useMemo(() => scene.clone(true), [scene])
+  const clonedScene = useMemo(() => SkeletonUtils.clone(scene) as THREE.Group, [scene])
   const mapping = useMemo(() => analyzeMotorModel(clonedScene), [clonedScene])
   const descriptorsRef = useRef<MotorMeshDescriptor[]>(mapping.descriptors)
   const planeRef = useRef(new THREE.Plane(new THREE.Vector3(1, 0, 0), 0.08))
+  const centeredRef = useRef(false)
   const fitScale = useMemo(() => {
     const maxDimension = Math.max(mapping.size.x, mapping.size.y, mapping.size.z)
     if (!Number.isFinite(maxDimension) || maxDimension <= 0) {
       return 1
     }
-    return THREE.MathUtils.clamp(3.2 / maxDimension, 0.02, 3)
+    return THREE.MathUtils.clamp(4.0 / maxDimension, 0.03, 3.5)
   }, [mapping.size.x, mapping.size.y, mapping.size.z])
 
   useEffect(() => {
     descriptorsRef.current = mapping.descriptors
+    if (!centeredRef.current) {
+      clonedScene.position.set(-mapping.center.x, -mapping.center.y, -mapping.center.z)
+      clonedScene.updateMatrixWorld(true)
+      centeredRef.current = true
+    }
 
     if (mode === 'cutaway') {
       planeRef.current.setFromNormalAndCoplanarPoint(new THREE.Vector3(1, 0, 0), new THREE.Vector3(0.07, 0, 0))
@@ -161,10 +169,8 @@ export function MotorGlbAssembly({ state, mode, sectionClipping }: MotorGlbAssem
   })
 
   return (
-    <group scale={fitScale} position={[0, 0, 0]}>
-      <Center top>
-        <primitive object={clonedScene} dispose={null} />
-      </Center>
+    <group scale={fitScale} position={[0, 0.12, 0]}>
+      <primitive object={clonedScene} dispose={null} />
     </group>
   )
 }

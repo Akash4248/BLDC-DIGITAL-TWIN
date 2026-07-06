@@ -12,7 +12,7 @@ html, body, #root {
 }
 
 body {
-  background: #071017;
+  background: #070b0e;
 }
 
 * {
@@ -25,11 +25,10 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(110, 231, 249, 0.28);
+  background: rgba(201, 139, 77, 0.28);
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-track {
   background: rgba(255, 255, 255, 0.03);
 }
-
