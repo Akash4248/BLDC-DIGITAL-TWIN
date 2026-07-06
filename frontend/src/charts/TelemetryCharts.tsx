@@ -3,6 +3,7 @@ import FileDownloadIcon from '@mui/icons-material/FileDownload'
 import Plot from 'react-plotly.js'
 import { useMemo } from 'react'
 import type { TelemetrySnapshot } from '../app/types'
+import { computeFocState } from '../app/focMath'
 
 type TelemetryChartsProps = {
   history: TelemetrySnapshot[]
@@ -148,6 +149,34 @@ export function TelemetryCharts({ history }: TelemetryChartsProps) {
     },
   ]
 
+  const focHistory = useMemo(() => history.map(item => 
+    computeFocState(
+      item.current.ia, item.current.ib, item.current.ic,
+      item.rotor_angle * 4, // Assuming pole pairs = 4
+      item.telemetry.duty_a, item.telemetry.duty_b, item.telemetry.duty_c,
+      item.telemetry.vdc
+    )
+  ), [history])
+
+  const dqTrace = [
+    {
+      x,
+      y: focHistory.map(f => f.Id),
+      type: 'scatter',
+      mode: 'lines',
+      name: 'Id (Flux)',
+      line: { color: '#C98B4D', width: 2 },
+    },
+    {
+      x,
+      y: focHistory.map(f => f.Iq),
+      type: 'scatter',
+      mode: 'lines',
+      name: 'Iq (Torque)',
+      line: { color: '#4caf50', width: 2 },
+    }
+  ]
+
   return (
     <Stack spacing={2}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" spacing={1}>
@@ -192,6 +221,22 @@ export function TelemetryCharts({ history }: TelemetryChartsProps) {
             zeroline: false,
             showgrid: false,
           },
+        }}
+        style={{ width: '100%', height: 280 }}
+        config={{
+          displayModeBar: true,
+          displaylogo: false,
+          responsive: true,
+          scrollZoom: true,
+        }}
+        useResizeHandler
+      />
+
+      <Plot
+        data={dqTrace as never}
+        layout={{
+          ...commonLayout,
+          title: { text: 'D-Q Currents (Id, Iq)' },
         }}
         style={{ width: '100%', height: 280 }}
         config={{

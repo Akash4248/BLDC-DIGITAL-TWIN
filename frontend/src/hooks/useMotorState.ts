@@ -6,44 +6,28 @@ import { computeFocState } from '../app/focMath'
 type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'mock'
 
 function createMockSnapshot(t: number): TelemetrySnapshot {
-  const angle = (t * 0.8) % (Math.PI * 2)
-  const speed = 1200 + Math.sin(t * 0.6) * 120
-  const torque = 1.8 + Math.cos(t * 0.8) * 0.25
-  const ia = Math.sin(angle) * 9
-  const ib = Math.sin(angle - (2 * Math.PI) / 3) * 9
-  const ic = Math.sin(angle + (2 * Math.PI) / 3) * 9
-  const hall = {
-    a: Math.floor((angle / (Math.PI / 3)) % 6) % 2,
-    b: Math.floor(((angle + Math.PI / 3) / (Math.PI / 3)) % 6) % 2,
-    c: Math.floor(((angle + (2 * Math.PI) / 3) / (Math.PI / 3)) % 6) % 2,
-  }
-
   return {
     telemetry: {
-      sequence: Math.floor(t * 25),
-      timestamp_us: Math.floor(t * 1000000),
-      duty_a: 0.5 + Math.sin(angle) * 0.18,
-      duty_b: 0.5 + Math.sin(angle - (2 * Math.PI) / 3) * 0.18,
-      duty_c: 0.5 + Math.sin(angle + (2 * Math.PI) / 3) * 0.18,
-      vdc: 24 + Math.sin(t * 0.2) * 0.4,
+      sequence: 0,
+      timestamp_us: 0,
+      duty_a: 0.5,
+      duty_b: 0.5,
+      duty_c: 0.5,
+      vdc: 24,
     },
     current: {
-      ia,
-      ib,
-      ic,
-      adc_a: Math.round((ia + 12) * 120),
-      adc_b: Math.round((ib + 12) * 120),
-      adc_c: Math.round((ic + 12) * 120),
+      ia: 0,
+      ib: 0,
+      ic: 0,
+      adc_a: 0,
+      adc_b: 0,
+      adc_c: 0,
     },
-    speed,
-    torque,
-    rotor_angle: angle,
-    hall,
-    encoder: {
-      a: Number(Math.sin(angle) >= 0),
-      b: Number(Math.sin(angle + Math.PI / 2) >= 0),
-      index: Number(angle < 0.08),
-    },
+    speed: 0,
+    torque: 0,
+    rotor_angle: 0,
+    hall: { a: 0, b: 0, c: 0 },
+    encoder: { a: 0, b: 0, index: 0 },
   }
 }
 

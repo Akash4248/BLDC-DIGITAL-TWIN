@@ -239,21 +239,48 @@ export default function App() {
 
           <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
             <Tabs value={activeTab} onChange={(e, val) => setActiveTab(val)} textColor="inherit" indicatorColor="primary">
+              <Tab label="Architecture" />
               <Tab label="Dashboard" />
               <Tab label="3D Digital Twin" />
             </Tabs>
           </Box>
 
           {activeTab === 0 && (
-            <>
-              {/* MAIN 3-COLUMN VISUALIZATION LAYOUT */}
+            <Stack spacing={2.5}>
               <Grid container spacing={2.5} alignItems="stretch">
-                {/* COLUMN 1: Mathematical FOC Transforms & Waveforms */}
+                <Grid item xs={12} lg={8}>
+                  <PanelCard eyebrow="diagram" title="FOC Control Architecture" height="100%">
+                    <FocBlockDiagram foc={motorState.foc} />
+                  </PanelCard>
+                </Grid>
+                <Grid item xs={12} lg={4}>
+                  <PanelCard eyebrow="svpwm" title="Space Vector Modulation" height="100%">
+                    <SvpwmHexagon foc={motorState.foc} />
+                  </PanelCard>
+                </Grid>
+              </Grid>
+              <Grid container spacing={2.5} alignItems="stretch">
+                <Grid item xs={12} md={6}>
+                  <PanelCard eyebrow="clarke" title="Stationary Frame">
+                    <ClarkeTransform foc={motorState.foc} />
+                  </PanelCard>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <PanelCard eyebrow="park" title="Rotating Frame">
+                    <ParkTransform foc={motorState.foc} />
+                  </PanelCard>
+                </Grid>
+              </Grid>
+            </Stack>
+          )}
+
+          {activeTab === 1 && (
+            <>
+              {/* DASHBOARD WIDGETS */}
+              <Grid container spacing={2.5} alignItems="stretch">
+                {/* COLUMN 1: Basic Currents */}
                 <Grid item xs={12} lg={4}>
                   <Stack spacing={2.5}>
-                    <PanelCard eyebrow="diagram" title="Live FOC Architecture">
-                      <FocBlockDiagram foc={motorState.foc} />
-                    </PanelCard>
                     <PanelCard eyebrow="snapshot" title="Electrical snapshot">
                       <Stack spacing={1.25}>
                         <MetricTile label="Ia" value={snapshot.current.ia.toFixed(2)} suffix="A" tone="primary" />
@@ -265,21 +292,9 @@ export default function App() {
                   </Stack>
                 </Grid>
 
-                {/* COLUMN 2: Clarke/Park & Gauges */}
+                {/* COLUMN 2: Gauges & Status */}
                 <Grid item xs={12} lg={4}>
                   <Stack spacing={2.5}>
-                    <Grid container spacing={1.5}>
-                      <Grid item xs={6}>
-                        <PanelCard eyebrow="clarke" title="Stationary Frame">
-                          <ClarkeTransform foc={motorState.foc} />
-                        </PanelCard>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <PanelCard eyebrow="park" title="Rotating Frame">
-                          <ParkTransform foc={motorState.foc} />
-                        </PanelCard>
-                      </Grid>
-                    </Grid>
                     <PanelCard eyebrow="gauges" title="D-Q Currents">
                       <DqGauges foc={motorState.foc} />
                     </PanelCard>
@@ -287,13 +302,9 @@ export default function App() {
                   </Stack>
                 </Grid>
 
-                {/* COLUMN 3: SVPWM, Gates & Faults */}
+                {/* COLUMN 3: Gates & Faults */}
                 <Grid item xs={12} lg={4}>
                   <Stack spacing={2.5}>
-                    <PanelCard eyebrow="svpwm" title="Space Vector Modulation">
-                      <SvpwmHexagon foc={motorState.foc} />
-                    </PanelCard>
-                    
                     <PanelCard eyebrow="oscilloscope" title="Inverter Gates">
                       <GateOscilloscope history={history} />
                     </PanelCard>
@@ -324,7 +335,7 @@ export default function App() {
             </>
           )}
 
-          {activeTab === 1 && (
+          {activeTab === 2 && (
             <Box sx={{ height: 'calc(100vh - 200px)', borderRadius: 2, overflow: 'hidden', border: '1px solid rgba(201,139,77,0.12)' }}>
               <MotorScene snapshot={motorState} />
             </Box>
