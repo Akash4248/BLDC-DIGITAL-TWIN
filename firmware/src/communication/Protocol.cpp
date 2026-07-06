@@ -62,7 +62,7 @@ size_t encodeTelemetry(const TelemetryPacket& packet, uint8_t* out, size_t outSi
 }
 
 size_t encodeTwinState(const TwinStatePacket& packet, uint8_t* out, size_t outSize) {
-  constexpr uint16_t payloadLen = 20;
+  constexpr uint16_t payloadLen = 24;
   constexpr size_t frameLen = kHeaderSize + payloadLen + kCrcSize;
   if (outSize < frameLen) {
     return 0;
@@ -82,6 +82,8 @@ size_t encodeTwinState(const TwinStatePacket& packet, uint8_t* out, size_t outSi
   writeF32LE(payload + 8, packet.ic);
   writeF32LE(payload + 12, packet.rotorAngle);
   writeF32LE(payload + 16, packet.rotorSpeed);
+  writeU16LE(payload + 20, packet.maxExecTime);
+  writeU16LE(payload + 22, packet.missedDeadlines);
 
   const uint16_t crc = crc16CcittFalse(out + 2, kHeaderSize - 2 + payloadLen);
   writeU16LE(out + kHeaderSize + payloadLen, crc);
@@ -139,7 +141,7 @@ bool FrameParser::tryParseFrame(Result& result) {
   }
 
   if ((type == kTypeTelemetry && payloadLen != 24) ||
-      (type == kTypeTwinState && payloadLen != 20)) {
+      (type == kTypeTwinState && payloadLen != 24)) {
     resync();
     return false;
   }
@@ -174,6 +176,8 @@ bool FrameParser::tryParseFrame(Result& result) {
     memcpy(&result.twinState.ic, payload + 8, sizeof(float));
     memcpy(&result.twinState.rotorAngle, payload + 12, sizeof(float));
     memcpy(&result.twinState.rotorSpeed, payload + 16, sizeof(float));
+    result.twinState.maxExecTime = static_cast<uint16_t>(payload[20]) | (static_cast<uint16_t>(payload[21]) << 8);
+    result.twinState.missedDeadlines = static_cast<uint16_t>(payload[22]) | (static_cast<uint16_t>(payload[23]) << 8);
   }
 
   memmove(buffer_, buffer_ + frameLen, length_ - frameLen);

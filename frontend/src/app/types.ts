@@ -1,3 +1,5 @@
+import type { FocState } from './focMath'
+
 export type TelemetrySnapshot = {
   telemetry: {
     sequence: number
@@ -74,6 +76,7 @@ export type MotorState = {
     b: number
     c: number
   }
+  foc: FocState
 }
 
 export type SimulationState = {

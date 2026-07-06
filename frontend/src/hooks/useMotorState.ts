@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { MotorState, TelemetrySnapshot } from '../app/types'
 import { backendClient } from '../services/backendClient'
+import { computeFocState } from '../app/focMath'
 
 type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'mock'
 
@@ -81,6 +82,16 @@ function deriveMotorState(snapshot: TelemetrySnapshot): MotorState {
       b: dutyB,
       c: dutyC,
     },
+    foc: computeFocState(
+      snapshot.current.ia,
+      snapshot.current.ib,
+      snapshot.current.ic,
+      snapshot.rotor_angle * 4, // electrical angle for FOC math (pole pairs = 4)
+      dutyA,
+      dutyB,
+      dutyC,
+      snapshot.telemetry.vdc
+    )
   }
 }
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.api.ws import router as ws_router
 from backend.app.api.routes import router
@@ -14,6 +15,15 @@ from backend.app.api.deps import get_simulation_service
 def create_app() -> FastAPI:
     configure_logging()
     app = FastAPI(title="BLDC Digital Twin Backend", version="1.0.0")
+    
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    
     app.include_router(router)
     app.include_router(ws_router)
 

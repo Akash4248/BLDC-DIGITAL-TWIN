@@ -8,7 +8,7 @@ from threading import Event, Thread
 from typing import Optional
 
 from backend.app.serial.connection import ReconnectingSerialLink, SerialConfig
-from backend.app.serial.protocol import TelemetryPacket, encode_twin_state
+from backend.app.serial.protocol import TwinStatePacket, TelemetryPacket
 from backend.app.services.simulation_service import SimulationService, SimulationServiceError
 
 
@@ -91,15 +91,37 @@ class DigitalTwinUsbBridge:
             logger.error("USB bridge cannot start without an event loop")
             return
 
-        def handle_packet(packet: TelemetryPacket) -> None:
-            try:
-                future = asyncio.run_coroutine_threadsafe(self._service.step_and_broadcast(packet), loop)
-                result = future.result(timeout=2.0)
-                self._serial.write(encode_twin_state(result.feedback))
-            except SimulationServiceError as exc:
-                logger.warning("USB telemetry rejected: %s", exc)
-            except Exception as exc:
-                logger.exception("USB bridge packet handling failed: %s", exc)
+        def handle_packet(packet: TwinStatePacket | TelemetryPacket) -> None:
+            if isinstance(packet, TwinStatePacket):
+                payload = {
+                    "telemetry": {
+                        "sequence": packet.sequence,
+                        "timestamp_us": 0,
+                        "duty_a": 0, "duty_b": 0, "duty_c": 0, "vdc": 0
+                    },
+                    "current": {
+                        "ia": packet.ia,
+                        "ib": packet.ib,
+                        "ic": packet.ic,
+                        "adc_a": 0, "adc_b": 0, "adc_c": 0
+                    },
+                    "speed": packet.rotor_speed,
+                    "torque": 0.0,
+                    "rotor_angle": packet.rotor_angle,
+                    "hall": {"a": False, "b": False, "c": False},
+                    "encoder": {"a": False, "b": False, "index": False},
+                    "diagnostics": {
+                        "max_exec_time": getattr(packet, "max_exec_time", 0),
+                        "missed_deadlines": getattr(packet, "missed_deadlines", 0)
+                    }
+                }
+                # Broadcast directly to websocket clients
+                asyncio.run_coroutine_threadsafe(
+                    self._service.broadcaster.broadcast_raw(payload), loop
+                )
+            else:
+                # Fallback for telemetry packets if needed
+                pass
 
         try:
             self._serial.read_packets(handle_packet, stop_event=self._stop_event)

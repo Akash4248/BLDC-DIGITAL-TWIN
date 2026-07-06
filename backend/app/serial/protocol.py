@@ -60,6 +60,8 @@ class TwinStatePacket:
     ic: float
     rotor_angle: float
     rotor_speed: float
+    max_exec_time: int
+    missed_deadlines: int
 
 
 def _pack_header(packet_type: PacketType, sequence: int, payload_len: int) -> bytes:
@@ -93,12 +95,14 @@ def encode_telemetry(packet: TelemetryPacket) -> bytes:
 
 def encode_twin_state(packet: TwinStatePacket) -> bytes:
     payload = struct.pack(
-        "<fffff",
+        "<fffffHH",
         packet.ia,
         packet.ib,
         packet.ic,
         packet.rotor_angle,
         packet.rotor_speed,
+        packet.max_exec_time,
+        packet.missed_deadlines,
     )
     header = _pack_header(PacketType.TWIN_STATE, packet.sequence, len(payload))
     crc = crc16_ccitt_false(header[2:] + payload)
@@ -131,7 +135,7 @@ def _validate_and_split(frame: bytes) -> Tuple[PacketType, int, bytes]:
 
     if packet_type == PacketType.TELEMETRY and payload_len != 24:
         raise PacketValidationError("invalid telemetry payload length")
-    if packet_type == PacketType.TWIN_STATE and payload_len != 20:
+    if packet_type == PacketType.TWIN_STATE and payload_len != 24:
         raise PacketValidationError("invalid twin state payload length")
 
     return packet_type, sequence, payload
@@ -151,7 +155,7 @@ def decode_frame(frame: bytes) -> TelemetryPacket | TwinStatePacket:
             vdc=vdc,
         )
 
-    ia, ib, ic, rotor_angle, rotor_speed = struct.unpack("<fffff", payload)
+    ia, ib, ic, rotor_angle, rotor_speed, max_exec_time, missed_deadlines = struct.unpack("<fffffHH", payload)
     return TwinStatePacket(
         sequence=sequence,
         ia=ia,
@@ -159,6 +163,8 @@ def decode_frame(frame: bytes) -> TelemetryPacket | TwinStatePacket:
         ic=ic,
         rotor_angle=rotor_angle,
         rotor_speed=rotor_speed,
+        max_exec_time=max_exec_time,
+        missed_deadlines=missed_deadlines,
     )
 
 

@@ -28,6 +28,8 @@ struct TwinStatePacket {
   float ic;
   float rotorAngle;
   float rotorSpeed;
+  uint16_t maxExecTime;
+  uint16_t missedDeadlines;
 };
 
 uint16_t crc16CcittFalse(const uint8_t* data, size_t length);

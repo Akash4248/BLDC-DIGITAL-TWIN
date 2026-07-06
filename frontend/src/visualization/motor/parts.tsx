@@ -348,30 +348,67 @@ export function MagneticField({ state, onHover }: { state: MotorState; onHover: 
   const group = useRef<THREE.Group>(null)
   const strength = Math.min(1.2, 0.2 + Math.max(Math.abs(state.ia), Math.abs(state.ib), Math.abs(state.ic)) * 0.02)
 
+  const statorAngleRef = useRef(0)
+  const rotorAngleRef = useRef(0)
+  
+  // Magnitudes for arrows
+  const statorMag = Math.sqrt(state.foc.Ialpha ** 2 + state.foc.Ibeta ** 2)
+  const arrowLengthStator = 1.0 + (statorMag / 10) // Scale length by current
+  const arrowLengthRotor = 2.0 // Permanent magnet flux is constant
+
   useFrame((_, delta) => {
     if (!group.current) return
     group.current.rotation.y = THREE.MathUtils.damp(group.current.rotation.y, state.electricalAngle, 7.5, delta)
+    
+    // Update vector angles
+    const targetStatorAngle = Math.atan2(state.foc.Ibeta, state.foc.Ialpha)
+    statorAngleRef.current = THREE.MathUtils.damp(statorAngleRef.current, targetStatorAngle, 10, delta)
+    rotorAngleRef.current = THREE.MathUtils.damp(rotorAngleRef.current, state.electricalAngle, 10, delta)
   })
 
+  // Reusable 3D arrow
+  const Arrow = ({ color, length, angle }: { color: string, length: number, angle: number }) => (
+    <group rotation={[0, -angle, 0]} position={[0, 0.5, 0]}>
+      {/* shaft */}
+      <mesh position={[length / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.05, 0.05, length, 16]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.5} transparent opacity={0.8} />
+      </mesh>
+      {/* head */}
+      <mesh position={[length, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
+        <coneGeometry args={[0.15, 0.3, 16]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.5} transparent opacity={0.8} />
+      </mesh>
+    </group>
+  )
+
   return (
-    <group ref={group}>
-      {Array.from({ length: 10 }, (_, index) => {
-        const angle = (index / 10) * Math.PI * 2
-        const x = Math.cos(angle) * 1.72
-        const z = Math.sin(angle) * 1.72
-        return (
-          <mesh key={angle} position={[x, 0.02 * Math.sin(angle * 3), z]} rotation={[0, -angle, 0]} castShadow>
-            <torusGeometry args={[0.38, 0.018, 10, 42, Math.PI * 0.95]} />
-            <meshStandardMaterial
-              color={index % 2 === 0 ? '#b8c9d6' : '#c98b4d'}
-              emissive={index % 2 === 0 ? '#b8c9d6' : '#c98b4d'}
-              emissiveIntensity={0.14 + strength * 0.6}
-              transparent
-              opacity={0.95}
-            />
-          </mesh>
-        )
-      })}
+    <group>
+      {/* The original decorative field lines */}
+      <group ref={group}>
+        {Array.from({ length: 10 }, (_, index) => {
+          const angle = (index / 10) * Math.PI * 2
+          const x = Math.cos(angle) * 1.72
+          const z = Math.sin(angle) * 1.72
+          return (
+            <mesh key={angle} position={[x, 0.02 * Math.sin(angle * 3), z]} rotation={[0, -angle, 0]} castShadow>
+              <torusGeometry args={[0.38, 0.018, 10, 42, Math.PI * 0.95]} />
+              <meshStandardMaterial
+                color={index % 2 === 0 ? '#b8c9d6' : '#c98b4d'}
+                emissive={index % 2 === 0 ? '#b8c9d6' : '#c98b4d'}
+                emissiveIntensity={0.14 + strength * 0.6}
+                transparent
+                opacity={0.95}
+              />
+            </mesh>
+          )
+        })}
+      </group>
+
+      {/* NEW: FOC Magnetic Field Vectors (Stator=Red, Rotor=Blue) */}
+      <Arrow color="#d32f2f" length={arrowLengthStator} angle={statorAngleRef.current} />
+      <Arrow color="#1976d2" length={arrowLengthRotor} angle={rotorAngleRef.current} />
+
       <mesh
         onPointerOver={(event) => {
           event.stopPropagation()
@@ -393,7 +430,7 @@ export function TorqueArrow({ state }: { state: MotorState }) {
   useFrame((_, delta) => {
     if (!group.current) return
     const target = state.torque >= 0 ? 0 : Math.PI
-    group.current.rotation.y = THREE.MathUtils.dampAngle(group.current.rotation.y, target, 5.5, delta)
+    group.current.rotation.y = THREE.MathUtils.lerp(group.current.rotation.y, target, 5.5 * delta)
   })
 
   return (

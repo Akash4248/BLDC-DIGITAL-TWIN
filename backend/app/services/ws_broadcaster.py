@@ -85,3 +85,16 @@ class WebSocketBroadcaster:
             async with self._lock:
                 for client in stale_clients:
                     self._clients.discard(client)
+
+    async def broadcast_raw(self, payload: dict[str, Any]) -> None:
+        stale_clients: list[WebSocket] = []
+        for client in list(self._clients):
+            try:
+                await client.send_json(payload)
+            except Exception:
+                stale_clients.append(client)
+
+        if stale_clients:
+            async with self._lock:
+                for client in stale_clients:
+                    self._clients.discard(client)
