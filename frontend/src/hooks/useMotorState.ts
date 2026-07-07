@@ -1,31 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
-import type { MotorState, TelemetrySnapshot } from '../app/types'
+import type { MotorState, TelemetrySnapshot, MotorParameters } from '../app/types'
 import { backendClient } from '../services/backendClient'
 import { computeFocState } from '../app/focMath'
+import { globalMockEngine } from '../app/mockEngine'
 
 type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'mock'
 
-function createMockSnapshot(t: number): TelemetrySnapshot {
+function createEmptySnapshot(): TelemetrySnapshot {
   return {
-    telemetry: {
-      sequence: 0,
-      timestamp_us: 0,
-      duty_a: 0.5,
-      duty_b: 0.5,
-      duty_c: 0.5,
-      vdc: 24,
-    },
-    current: {
-      ia: 0,
-      ib: 0,
-      ic: 0,
-      adc_a: 0,
-      adc_b: 0,
-      adc_c: 0,
-    },
-    speed: 0,
-    torque: 0,
-    rotor_angle: 0,
+    telemetry: { sequence: 0, timestamp_us: 0, duty_a: 0.5, duty_b: 0.5, duty_c: 0.5, vdc: 24 },
+    current: { ia: 0, ib: 0, ic: 0, adc_a: 0, adc_b: 0, adc_c: 0 },
+    speed: 0, torque: 0, rotor_angle: 0,
     hall: { a: 0, b: 0, c: 0 },
     encoder: { a: 0, b: 0, index: 0 },
   }
@@ -135,12 +120,12 @@ function normalizePayload(payload: {
   }
 }
 
-export function useMotorState() {
-  const [snapshot, setSnapshot] = useState<TelemetrySnapshot>(() => createMockSnapshot(0))
-  const [motorState, setMotorState] = useState<MotorState>(() => deriveMotorState(createMockSnapshot(0)))
+export function useMotorState(parameters: MotorParameters) {
+  const [snapshot, setSnapshot] = useState<TelemetrySnapshot>(() => createEmptySnapshot())
+  const [motorState, setMotorState] = useState<MotorState>(() => deriveMotorState(createEmptySnapshot()))
   const [connection, setConnection] = useState<ConnectionState>('connecting')
   const [connectedClients, setConnectedClients] = useState(0)
-  const [history, setHistory] = useState<TelemetrySnapshot[]>([createMockSnapshot(0)])
+  const [history, setHistory] = useState<TelemetrySnapshot[]>([createEmptySnapshot()])
   const mockTimer = useRef<number | null>(null)
   const tick = useRef(0)
   const mounted = useRef(true)
@@ -151,26 +136,26 @@ export function useMotorState() {
     setHistory((current) => [...current.slice(-119), next])
   }
 
+  // Store latest parameters in a ref so mock interval can use them
+  const paramsRef = useRef(parameters)
+  useEffect(() => {
+    paramsRef.current = parameters
+  }, [parameters])
+
   function startMockStream() {
-    if (!mounted.current || mockTimer.current !== null) return
-    setConnection('mock')
-    mockTimer.current = window.setInterval(() => {
-      tick.current += 0.04
-      const next = createMockSnapshot(tick.current)
-      commitSnapshot(next)
-      setConnectedClients(1)
-    }, 40)
+    // Mock simulation completely removed per user request
+    if (!mounted.current) return
+    if (connection === 'connecting') {
+      setConnection('disconnected')
+    }
   }
 
   function stopMockStream() {
-    if (mockTimer.current === null) return
-    window.clearInterval(mockTimer.current)
-    mockTimer.current = null
+    // No-op
   }
 
   useEffect(() => {
     mounted.current = true
-    startMockStream()
 
     const socket = new WebSocket(backendClient.wsUrl)
     socket.binaryType = 'arraybuffer'

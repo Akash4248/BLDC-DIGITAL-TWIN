@@ -1,5 +1,5 @@
 #include "FastMath.h"
-#include <avr/pgmspace.h>
+#include <Arduino.h>
 
 namespace TwinSimulation {
 namespace FastMath {

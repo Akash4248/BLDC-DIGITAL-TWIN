@@ -20,9 +20,9 @@ class Inverter {
   // deadTimeUs: The expected dead-time between high/low switches
   void begin(float deadTimeUs = 1.0f);
 
-  // Update the inverter state based on raw gate signals
+  // Update the inverter state based on average duty cycles (0.0 to 1.0)
   // This calculates the effective phase voltages applied to the motor
-  void update(bool ah, bool al, bool bh, bool bl, bool ch, bool cl, float vdc);
+  void update(float dutyA, float dutyB, float dutyC, float vdc);
 
   // Read the calculated state
   const InverterState& getState() const;

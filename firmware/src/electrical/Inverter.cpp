@@ -41,25 +41,12 @@ float Inverter::calculateLegVoltage(bool highGate, bool lowGate, float vdc, bool
   return vdc / 2.0f; 
 }
 
-void Inverter::update(bool ah, bool al, bool bh, bool bl, bool ch, bool cl, float vdc) {
-  bool shootThroughA = false;
-  bool shootThroughB = false;
-  bool shootThroughC = false;
-
-  state_.va = calculateLegVoltage(ah, al, vdc, shootThroughA);
-  state_.vb = calculateLegVoltage(bh, bl, vdc, shootThroughB);
-  state_.vc = calculateLegVoltage(ch, cl, vdc, shootThroughC);
-
-  if (shootThroughA || shootThroughB || shootThroughC) {
-    state_.shootThroughFault = true;
-  }
-
-  // Detect invalid states like all gates off for an extended period when they shouldn't be,
-  // or logic errors not covered by shoot-through.
-  if (!ah && !al && !bh && !bl && !ch && !cl) {
-    // This is valid during initialization or full disable, but can be flagged for tracking.
-    // We won't strictly call it an invalid state fault here to allow coasting.
-  }
+void Inverter::update(float dutyA, float dutyB, float dutyC, float vdc) {
+  // Simple continuous average voltage model
+  state_.va = dutyA * vdc;
+  state_.vb = dutyB * vdc;
+  state_.vc = dutyC * vdc;
+  state_.shootThroughFault = false;
 }
 
 const InverterState& Inverter::getState() const {

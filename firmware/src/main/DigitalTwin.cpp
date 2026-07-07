@@ -71,30 +71,30 @@ void DigitalTwin::setDiagnostics(uint16_t maxExecTime, uint16_t missedDeadlines)
   diagMissedDeadlines_ = missedDeadlines;
 }
 
+void DigitalTwin::setExternalDutyCycles(float dutyA, float dutyB, float dutyC) {
+  extDutyA_ = dutyA;
+  extDutyB_ = dutyB;
+  extDutyC_ = dutyC;
+  useExtDuty_ = true;
+}
+
 void DigitalTwin::step(float dt) {
   // 1. Read packet (Non-blocking process incoming serial bytes)
   link_.update();
   
-  // Extract inputs from latest telemetry packet from ESP32
+  // Extract inputs from latest telemetry packet from PC dashboard
   const auto& tele = link_.getLatestTelemetry();
   
-  // In a real hardware system, the Arduino would read 6 digital pins here.
-  // Since we use serial telemetry for inputs, we map duty cycles to pseudo-gates.
-  // For simulation simplicity at 1kHz, we treat a non-zero duty cycle as "gate high".
-  // A perfect model would run an interrupt-based PWM reader.
-  // We assume the ESP32 is sending average duty cycles or simplified gate commands.
-  bool ah = tele.dutyA > 0.0f;
-  bool al = !ah; // Complementary
-  bool bh = tele.dutyB > 0.0f;
-  bool bl = !bh;
-  bool ch = tele.dutyC > 0.0f;
-  bool cl = !ch;
+  // Use Bridge HIL Duty Cycles if provided, otherwise fallback to PC
+  float dA = useExtDuty_ ? extDutyA_ : tele.dutyA;
+  float dB = useExtDuty_ ? extDutyB_ : tele.dutyB;
+  float dC = useExtDuty_ ? extDutyC_ : tele.dutyC;
 
   // Apply Faults to inputs
   float vdc = faults_.applyVoltageSag(tele.vdc > 0.1f ? tele.vdc : 12.0f);
 
-  // 2. Inverter Model
-  inverter_.update(ah, al, bh, bl, ch, cl, vdc);
+  // 2. Inverter Model (Using smooth average voltage model)
+  inverter_.update(dA, dB, dC, vdc);
   const auto& invState = inverter_.getState();
 
   // 3. Electrical Model

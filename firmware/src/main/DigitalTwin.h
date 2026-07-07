@@ -32,6 +32,9 @@ class DigitalTwin {
   // Inject timing diagnostics to be sent in the next telemetry packet
   void setDiagnostics(uint16_t maxExecTime, uint16_t missedDeadlines);
 
+  // Inject real physical duty cycles from HIL bridge
+  void setExternalDutyCycles(float dutyA, float dutyB, float dutyC);
+
  private:
   TwinProtocol::TwinLink& link_;
   
@@ -52,6 +55,11 @@ class DigitalTwin {
   
   uint16_t diagMaxExecTime_;
   uint16_t diagMissedDeadlines_;
+  
+  bool useExtDuty_ = false;
+  float extDutyA_ = 0.0f;
+  float extDutyB_ = 0.0f;
+  float extDutyC_ = 0.0f;
   
   void applyDefaultConfig();
 };

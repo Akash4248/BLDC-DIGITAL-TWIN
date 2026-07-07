@@ -55,10 +55,9 @@ const initialState: SimulationState = {
 }
 
 export default function App() {
-  const isMobile = useMediaQuery('(max-width:900px)')
-  const { snapshot, motorState, history, connection, connectedClients } = useMotorState()
-  const [state, setState] = useState<SimulationState>(initialState)
   const [parameters, setParameters] = useState<MotorParameters>(initialParameters)
+  const { snapshot, motorState, history, connection, connectedClients } = useMotorState(parameters)
+  const [state, setState] = useState<SimulationState>(initialState)
   const [faults, setFaults] = useState<FaultItem[]>([])
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [logsLoading, setLogsLoading] = useState(false)

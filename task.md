@@ -1,0 +1,4 @@
+- `[x]` Create `PWM_to_Serial_Bridge.ino` for Arduino UNO #2
+- `[x]` Modify `DigitalTwin.cpp` to support external duty cycle injection
+- `[x]` Modify `firmware.ino` to read from ESP32 `Serial2` and inject data into the Twin
+- `[x]` Verify compilation and syntax

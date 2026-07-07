@@ -16,13 +16,41 @@ uint32_t missedDeadlines = 0;
 
 void setup() {
   // Initialize communication and twin simulation
-  twinLink.begin(115200);
+  twinLink.begin(921600);
+  
+  // Initialize Serial2 for Arduino #2 Bridge
+  // RX2 = GPIO 16, TX2 = GPIO 17
+  #if defined(ESP32)
+  Serial2.begin(115200, SERIAL_8N1, 16, 17);
+  #endif
+  
   twin.begin();
   
   lastLoopTime = micros();
 }
 
 void loop() {
+  // Parse incoming 6-byte packets from Arduino #2 Bridge
+  #if defined(ESP32)
+  while (Serial2.available() >= 6) {
+    if (Serial2.read() == 0xAA) {
+      if (Serial2.peek() == 0x55) {
+        Serial2.read(); // Consume 0x55
+        uint8_t dA = Serial2.read();
+        uint8_t dB = Serial2.read();
+        uint8_t dC = Serial2.read();
+        uint8_t chk = Serial2.read();
+        
+        uint8_t sum = (uint8_t)(dA + dB + dC);
+        if (chk == sum) {
+          // Valid packet received! Inject into simulation.
+          twin.setExternalDutyCycles(dA / 255.0f, dB / 255.0f, dC / 255.0f);
+        }
+      }
+    }
+  }
+  #endif
+
   uint32_t currentMicros = micros();
   uint32_t elapsedMicros = currentMicros - lastLoopTime;
   
