@@ -1,195 +1,135 @@
+/*******************************************************************************
+ * firmware.ino - ESP32 Motor Digital Twin entry point
+ *
+ * System: Dual-MCU Hardware-in-the-Loop (HIL) Digital Twin
+ * Role  : Motor Digital Twin (Receives AH/AL/BH/BL/CH/CL, outputs Ia/Ib/Ic/Theta)
+ *
+ * Inputs (from Arduino via voltage divider 5V->3.3V):
+ *   GPIO 32 = AH  (Phase A High-side gate)
+ *   GPIO 14 = AL  (Phase A Low-side gate)
+ *   GPIO 33 = BH  (Phase B High-side gate)
+ *   GPIO 27 = BL  (Phase B Low-side gate)
+ *   GPIO 25 = CH  (Phase C High-side gate)
+ *   GPIO 26 = CL  (Phase C Low-side gate)
+ *
+ * Outputs (to Arduino via RC low-pass filter):
+ *   GPIO 4  = Ia    (Phase A Current, PWM+RC -> analog)
+ *   GPIO 18 = Ib    (Phase B Current, PWM+RC -> analog)
+ *   GPIO 19 = Ic    (Phase C Current, PWM+RC -> analog)
+ *   GPIO 21 = Theta (Electrical angle 0..2pi, PWM+RC -> 0..3.3V)
+ *
+ * USB Serial: Sends telemetry to PC backend (BLDC Digital Twin Dashboard)
+ *
+ * Simulation runs at 10 kHz (100 µs per step) using esp_timer ISR.
+ ******************************************************************************/
+
 #include <Arduino.h>
-#include "src/main/DigitalTwin.h"
+#include <esp_timer.h>
+#include "src/Config.h"
+#include "src/Inverter.h"
+#include "src/MotorModel.h"
+#include "src/Encoder.h"
+#include "src/CurrentOutput.h"
 
-using namespace TwinProtocol;
-using namespace TwinSimulation;
+// ----- Module Instances -----
+static Inverter          inverter;
+static MotorModel        motor;
+static GateSignalReader  gateReader;
+static CurrentOutput     currentOut;
 
-TwinLink twinLink(Serial, 100);
-DigitalTwin twin(twinLink);
+// ----- Timing -----
+static volatile bool simTrigger = false;
+static uint32_t telemTimer = 0;
 
-uint32_t lastLoopTime = 0;
-const uint32_t TARGET_LOOP_MICROS = 100; // 10 kHz target for HIL simulation
+// ----- Telemetry Packet (binary, for PC backend) -----
+#pragma pack(push, 1)
+struct TelemetryPacket {
+  uint16_t magic;        // 0xAA55
+  uint8_t  type;         // 0x01
+  uint8_t  length;       // payload bytes
+  uint16_t seq;
+  uint32_t unused;
+  float    ia, ib, ic;
+  float    rotor_angle;
+  float    rotor_speed;
+};
+#pragma pack(pop)
 
-// Timing Diagnostics
-uint32_t maxExecTime = 0;
-uint32_t missedDeadlines = 0;
+static uint16_t seqNum = 0;
 
-#if defined(ESP32)
-// Direct Hardware PWM Reading (Inputs)
-const int PIN_PWM_A = 32;
-const int PIN_PWM_B = 33;
-const int PIN_PWM_C = 25;
-
-// Analog Current Outputs (PWM -> RC Filter)
-const int PIN_IA_OUT = 4;
-const int PIN_IB_OUT = 18;
-const int PIN_IC_OUT = 19;
-const int LEDC_FREQ = 39000; // 39 kHz for easy RC filtering
-const int LEDC_RES = 8;      // 8-bit resolution (0-255)
-
-// Digital Encoder Outputs
-const int PIN_ENC_A = 21;
-const int PIN_ENC_B = 22;
-const int PIN_ENC_Z = 23;
-
-// Variables for ultra-high-resolution duty cycle tracking
-volatile uint32_t highTimeA = 0;
-volatile uint32_t periodA = 30720; // Default to 128us period at 240MHz
-volatile uint32_t lastRiseA = 0;
-
-volatile uint32_t highTimeB = 0;
-volatile uint32_t periodB = 30720;
-volatile uint32_t lastRiseB = 0;
-
-volatile uint32_t highTimeC = 0;
-volatile uint32_t periodC = 30720;
-volatile uint32_t lastRiseC = 0;
-
-void IRAM_ATTR isrA() {
-  uint32_t now = xthal_get_ccount();
-  if (digitalRead(PIN_PWM_A)) { // Rising edge
-    periodA = now - lastRiseA;
-    lastRiseA = now;
-  } else { // Falling edge
-    highTimeA = now - lastRiseA;
-  }
+// ----- esp_timer ISR: fires every 100 µs (10 kHz) -----
+static void IRAM_ATTR onSimTimer(void* arg) {
+  simTrigger = true;
 }
 
-void IRAM_ATTR isrB() {
-  uint32_t now = xthal_get_ccount();
-  if (digitalRead(PIN_PWM_B)) {
-    periodB = now - lastRiseB;
-    lastRiseB = now;
-  } else {
-    highTimeB = now - lastRiseB;
-  }
-}
-
-void IRAM_ATTR isrC() {
-  uint32_t now = xthal_get_ccount();
-  if (digitalRead(PIN_PWM_C)) {
-    periodC = now - lastRiseC;
-    lastRiseC = now;
-  } else {
-    highTimeC = now - lastRiseC;
-  }
-}
-#endif
-
+// ============================================================================
+// setup()
+// ============================================================================
 void setup() {
-  // Initialize communication and twin simulation
-  twinLink.begin(921600);
-  
-  #if defined(ESP32)
-  pinMode(PIN_PWM_A, INPUT);
-  pinMode(PIN_PWM_B, INPUT);
-  pinMode(PIN_PWM_C, INPUT);
-  
-  pinMode(PIN_ENC_A, OUTPUT);
-  pinMode(PIN_ENC_B, OUTPUT);
-  pinMode(PIN_ENC_Z, OUTPUT);
-  
-  // Setup PWM Channels for Current Outputs (ESP32 v3 API)
-  ledcAttach(PIN_IA_OUT, LEDC_FREQ, LEDC_RES);
-  ledcAttach(PIN_IB_OUT, LEDC_FREQ, LEDC_RES);
-  ledcAttach(PIN_IC_OUT, LEDC_FREQ, LEDC_RES);
-  
-  attachInterrupt(digitalPinToInterrupt(PIN_PWM_A), isrA, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(PIN_PWM_B), isrB, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(PIN_PWM_C), isrC, CHANGE);
-  #endif
-  
-  twin.begin();
-  
-  lastLoopTime = micros();
+  Serial.begin(SERIAL_BAUD);
+
+  // Initialize gate signal reader (attaches interrupts on AH, BH, CH)
+  gateReader.begin();
+
+  // Initialize analog feedback outputs (LEDC PWM)
+  currentOut.begin();
+
+  // Create a repeating timer at 100 µs (10 kHz)
+  esp_timer_handle_t simTimerHandle;
+  esp_timer_create_args_t timerArgs = {
+    .callback        = onSimTimer,
+    .arg             = nullptr,
+    .dispatch_method = ESP_TIMER_TASK,
+    .name            = "sim_timer",
+    .skip_unhandled_events = true
+  };
+  esp_timer_create(&timerArgs, &simTimerHandle);
+  esp_timer_start_periodic(simTimerHandle, 100); // 100 µs = 10 kHz
+
+  Serial.println("ESP32 Motor Digital Twin started at 10 kHz");
 }
 
+// ============================================================================
+// loop()
+// ============================================================================
 void loop() {
-  #if defined(ESP32)
-  uint32_t now = xthal_get_ccount();
-  float dA, dB, dC;
+  if (!simTrigger) return;
+  simTrigger = false;
 
-  // If no edges for ~2 periods (61440 cycles), the pin is stuck at 0% or 100%
-  if (now - lastRiseA > 61440) {
-    dA = digitalRead(PIN_PWM_A) ? 1.0f : 0.0f;
-  } else {
-    dA = (float)highTimeA / (float)periodA;
-  }
-  
-  if (now - lastRiseB > 61440) {
-    dB = digitalRead(PIN_PWM_B) ? 1.0f : 0.0f;
-  } else {
-    dB = (float)highTimeB / (float)periodB;
-  }
-  
-  if (now - lastRiseC > 61440) {
-    dC = digitalRead(PIN_PWM_C) ? 1.0f : 0.0f;
-  } else {
-    dC = (float)highTimeC / (float)periodC;
-  }
+  // --- Step 1: Read gate signals -> compute duty cycles ---
+  float dutyA = gateReader.getDutyA();
+  float dutyB = gateReader.getDutyB();
+  float dutyC = gateReader.getDutyC();
 
-  // Constrain sanity check
-  if (dA < 0.0f) dA = 0.0f; if (dA > 1.0f) dA = 1.0f;
-  if (dB < 0.0f) dB = 0.0f; if (dB > 1.0f) dB = 1.0f;
-  if (dC < 0.0f) dC = 0.0f; if (dC > 1.0f) dC = 1.0f;
+  // --- Step 2: Inverter model -> compute phase voltages ---
+  inverter.update(dutyA, dutyB, dutyC, VDC);
+  const InverterState& inv = inverter.getState();
 
-  // Inject into simulation
-  twin.setExternalDutyCycles(dA, dB, dC);
-  #endif
+  // --- Step 3: Motor model -> advance simulation by one step ---
+  motor.step(inv.va, inv.vb, inv.vc, SIM_TS);
+  const MotorState& st = motor.getState();
 
-  uint32_t currentMicros = micros();
-  uint32_t elapsedMicros = currentMicros - lastLoopTime;
-  
-  // Deterministic 1 kHz Loop Scheduling
-  if (elapsedMicros >= TARGET_LOOP_MICROS) {
-    lastLoopTime = currentMicros;
-    
-    // Detect jitter/overruns before execution
-    if (elapsedMicros > TARGET_LOOP_MICROS + 50) {
-      missedDeadlines++;
-    }
-    
-    // Track execution time
-    uint32_t startExec = micros();
-    
-    // Inject diagnostics for telemetry transmission
-    twin.setDiagnostics(maxExecTime, missedDeadlines);
-    
-    // Run the main simulation engine pipeline (dt = 0.0001 seconds for 10kHz)
-    twin.step(0.0001f);
-    
-    #if defined(ESP32)
-    // --- 1. OUTPUT ANALOG CURRENTS (PWM for RC Filter) ---
-    const TwinSimulation::ElectricalState& elecState = twin.getElectricalState();
-    
-    // Map -10A to +10A to 0-3.3V (0-255 PWM duty)
-    // 0A = 1.65V = 127 duty
-    float ia_duty = (elecState.ia / 10.0f) * 127.0f + 127.0f;
-    float ib_duty = (elecState.ib / 10.0f) * 127.0f + 127.0f;
-    float ic_duty = (elecState.ic / 10.0f) * 127.0f + 127.0f;
-    
-    ledcWrite(PIN_IA_OUT, (uint32_t)constrain(ia_duty, 0.0f, 255.0f));
-    ledcWrite(PIN_IB_OUT, (uint32_t)constrain(ib_duty, 0.0f, 255.0f));
-    ledcWrite(PIN_IC_OUT, (uint32_t)constrain(ic_duty, 0.0f, 255.0f));
+  // --- Step 4: Output Ia, Ib, Ic, Theta back to Arduino ---
+  currentOut.writeCurrent(st.ia, st.ib, st.ic);
+  currentOut.writeTheta(st.elecAngle);
 
-    // --- 2. OUTPUT ENCODER PULSES ---
-    const TwinSimulation::EncoderState& encState = twin.getEncoderState();
-    digitalWrite(PIN_ENC_A, encState.a);
-    digitalWrite(PIN_ENC_B, encState.b);
-    digitalWrite(PIN_ENC_Z, encState.index);
-    #endif
-    
-    uint32_t endExec = micros();
-    uint32_t execTime = endExec - startExec;
-    
-    // Diagnostics recording
-    if (execTime > maxExecTime) {
-      maxExecTime = execTime;
-    }
-    
-    // Detect if execution time exceeded the 1ms budget
-    if (execTime >= TARGET_LOOP_MICROS) {
-      missedDeadlines++;
-    }
+  // --- Step 5: Send telemetry to PC dashboard (every 1 ms) ---
+  telemTimer++;
+  if (telemTimer >= (TELEM_INTERVAL_US / (uint32_t)(SIM_TS * 1000000.0f))) {
+    telemTimer = 0;
+
+    TelemetryPacket pkt;
+    pkt.magic       = 0xAA55;
+    pkt.type        = 0x01;
+    pkt.length      = sizeof(TelemetryPacket) - 4; // exclude magic+type+length
+    pkt.seq         = seqNum++;
+    pkt.unused      = 0;
+    pkt.ia          = st.ia;
+    pkt.ib          = st.ib;
+    pkt.ic          = st.ic;
+    pkt.rotor_angle = st.elecAngle;
+    pkt.rotor_speed = st.rotorSpeedRPM;
+
+    Serial.write((const uint8_t*)&pkt, sizeof(pkt));
   }
 }
