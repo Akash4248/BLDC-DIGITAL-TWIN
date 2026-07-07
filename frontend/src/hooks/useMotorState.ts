@@ -117,6 +117,20 @@ function normalizePayload(payload: {
     temperature: payload.temperature,
     pwm: payload.pwm,
     clients: payload.clients,
+    // ===== WEBSITE VISUALIZATION START =====
+    RotorAngle: (payload as any).RotorAngle,
+    StatorFieldAngle: (payload as any).StatorFieldAngle,
+    RotorFieldAngle: (payload as any).RotorFieldAngle,
+    FieldAngleDifference: (payload as any).FieldAngleDifference,
+    MotorMode: (payload as any).MotorMode,
+    ControllerMode: (payload as any).ControllerMode,
+    Ia: (payload as any).Ia,
+    Ib: (payload as any).Ib,
+    Ic: (payload as any).Ic,
+    RPM: (payload as any).RPM,
+    Voltage: (payload as any).Voltage,
+    PolePairs: (payload as any).PolePairs,
+    // ===== WEBSITE VISUALIZATION END =====
   }
 }
 
@@ -200,6 +214,20 @@ export function useMotorState(parameters: MotorParameters) {
             encoder: payload.encoder ?? { a: 0, b: 0, index: 0 },
             temperature: payload.temperature,
             pwm: payload.pwm,
+            // ===== WEBSITE VISUALIZATION START =====
+            RotorAngle: payload.RotorAngle,
+            StatorFieldAngle: payload.StatorFieldAngle,
+            RotorFieldAngle: payload.RotorFieldAngle,
+            FieldAngleDifference: payload.FieldAngleDifference,
+            MotorMode: payload.MotorMode,
+            ControllerMode: payload.ControllerMode,
+            Ia: payload.Ia,
+            Ib: payload.Ib,
+            Ic: payload.Ic,
+            RPM: payload.RPM,
+            Voltage: payload.Voltage,
+            PolePairs: payload.PolePairs,
+            // ===== WEBSITE VISUALIZATION END =====
           })
         }
       } catch {

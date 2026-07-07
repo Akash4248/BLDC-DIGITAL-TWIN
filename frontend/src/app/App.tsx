@@ -25,7 +25,7 @@ import { LoggerPanel } from '../components/LoggerPanel'
 import { TelemetryCharts } from '../charts/TelemetryCharts'
 import { MotorScene } from '../visualization/MotorScene'
 import { FocBlockDiagram } from '../visualization/FocBlockDiagram'
-import { ClarkeTransform, ParkTransform } from '../visualization/TransformVisualizations'
+import { ClarkeTransform, ParkTransform, FieldAngleVisualizer } from '../visualization/TransformVisualizations'
 import { SvpwmHexagon } from '../visualization/SvpwmHexagon'
 import { GateOscilloscope } from '../visualization/GateOscilloscope'
 import { DqGauges } from '../visualization/DqGauges'
@@ -288,6 +288,21 @@ export default function App() {
                         <MetricTile label="Rotor Angle" value={(snapshot.rotor_angle * 180 / Math.PI).toFixed(1)} suffix="deg" tone="warning" />
                       </Stack>
                     </PanelCard>
+
+                    {snapshot.MotorMode && (
+                      <PanelCard eyebrow="visualization" title="Modes & Fields">
+                        <Stack spacing={1.25}>
+                          <MetricTile label="Motor Mode" value={snapshot.MotorMode === "Open_Loop" ? "Open Loop" : "Closed Loop"} suffix="" tone={snapshot.MotorMode === "Open_Loop" ? "warning" : "success"} />
+                          <MetricTile label="Controller" value={snapshot.ControllerMode === "Non-FOC" ? "Non-FOC" : "FOC Enabled"} suffix="" tone={snapshot.ControllerMode === "Non-FOC" ? "warning" : "success"} />
+                          <MetricTile label="Est. Rotor Angle" value={snapshot.RotorAngle !== undefined ? snapshot.RotorAngle.toFixed(1) : "0.0"} suffix="°" tone="primary" />
+                          <MetricTile label="Rotor Field Angle" value={snapshot.RotorFieldAngle !== undefined ? snapshot.RotorFieldAngle.toFixed(1) : "0.0"} suffix="°" tone="secondary" />
+                          <MetricTile label="Stator Field Angle" value={snapshot.StatorFieldAngle !== undefined ? snapshot.StatorFieldAngle.toFixed(1) : "0.0"} suffix="°" tone="success" />
+                          <MetricTile label="Field Angle Diff" value={snapshot.FieldAngleDifference !== undefined ? snapshot.FieldAngleDifference.toFixed(1) : "0.0"} suffix="°" tone="warning" />
+                          <MetricTile label="Line Voltage" value={snapshot.Voltage !== undefined ? snapshot.Voltage.toFixed(1) : "12.0"} suffix="V" tone="success" />
+                          <MetricTile label="Motor Pole Pairs" value={snapshot.PolePairs !== undefined ? snapshot.PolePairs.toString() : "2"} suffix="" tone="primary" />
+                        </Stack>
+                      </PanelCard>
+                    )}
                   </Stack>
                 </Grid>
 
@@ -297,6 +312,11 @@ export default function App() {
                     <PanelCard eyebrow="gauges" title="D-Q Currents">
                       <DqGauges foc={motorState.foc} />
                     </PanelCard>
+                    {snapshot.MotorMode && (
+                      <PanelCard eyebrow="alignment" title="Field Alignment Angle">
+                        <FieldAngleVisualizer snapshot={snapshot} />
+                      </PanelCard>
+                    )}
                     <StatusPanel state={{ ...state, clients: connectedClients }} connection={connection} />
                   </Stack>
                 </Grid>

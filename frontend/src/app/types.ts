@@ -39,6 +39,20 @@ export type TelemetrySnapshot = {
     ch: number
     cl: number
   }
+  // ===== WEBSITE VISUALIZATION START =====
+  RotorAngle?: number
+  StatorFieldAngle?: number
+  RotorFieldAngle?: number
+  FieldAngleDifference?: number
+  MotorMode?: string
+  ControllerMode?: string
+  Ia?: number
+  Ib?: number
+  Ic?: number
+  RPM?: number
+  Voltage?: number
+  PolePairs?: number
+  // ===== WEBSITE VISUALIZATION END =====
 }
 
 export type PwmState = {

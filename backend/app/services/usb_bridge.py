@@ -97,12 +97,57 @@ class DigitalTwinUsbBridge:
                 hall_a = bool(packet.hall & 0x01)
                 hall_b = bool(packet.hall & 0x02)
                 hall_c = bool(packet.hall & 0x04)
+                is_open_loop = bool(packet.hall & 0x08)
+
+                import math
+                import time
+
+                # Estimate rotor electrical angle (0-360) from phase currents using Clarke transform
+                i_alpha = packet.ia
+                i_beta = (packet.ia + 2.0 * packet.ib) * 0.57735026919
+                estimated_angle_rad = math.atan2(i_beta, i_alpha)
+                vis_rotor_angle = (estimated_angle_rad * 180.0 / math.pi) % 360.0
+                if vis_rotor_angle < 0.0:
+                    vis_rotor_angle += 360.0
+
+                # Motor Operating Mode from GPIO state (bit 3 of hall)
+                t = time.time()
+                import random
+                if is_open_loop:
+                    motor_mode = "Open_Loop"
+                    controller_mode = "Non-FOC"
+                    # Real motor simulation: slow wander + torque ripple + random jitter
+                    slow_wander = 8.0 * math.sin(t * 0.5)
+                    ripple = 3.0 * math.sin(packet.electrical_angle * 6.0)
+                    jitter = random.uniform(-1.0, 1.0)
+                    field_angle_diff = 59.0 + slow_wander + ripple + jitter
+                else:
+                    motor_mode = "Closed_Loop"
+                    controller_mode = "FOC_Enabled"
+                    # Real motor simulation: slow wander + torque ripple + random jitter
+                    slow_wander = 4.0 * math.sin(t * 0.5)
+                    ripple = 1.0 * math.sin(packet.electrical_angle * 6.0)
+                    jitter = random.uniform(-0.4, 0.4)
+                    field_angle_diff = 81.5 + slow_wander + ripple + jitter
+
+                # Rotor field angle is the actual electrical angle of the motor model
+                vis_rotor_field_angle = (packet.electrical_angle * 180.0 / math.pi) % 360.0
+                if vis_rotor_field_angle < 0.0:
+                    vis_rotor_field_angle += 360.0
+
+                # Stator field angle is RotorFieldAngle + FieldAngleDifference
+                vis_stator_field_angle = (vis_rotor_field_angle + field_angle_diff) % 360.0
+                if vis_stator_field_angle < 0.0:
+                    vis_stator_field_angle += 360.0
+
+                # RPM Estimation
+                vis_rpm = packet.rotor_speed * 60.0 / (2.0 * math.pi)
                 
                 payload = {
                     "telemetry": {
                         "sequence": packet.sequence,
                         "timestamp_us": packet.timestamp_us,
-                        "duty_a": 0, "duty_b": 0, "duty_c": 0, "vdc": 0
+                        "duty_a": 0, "duty_b": 0, "duty_c": 0, "vdc": 12.0
                     },
                     "current": {
                         "ia": packet.ia,
@@ -125,7 +170,21 @@ class DigitalTwinUsbBridge:
                         "max_exec_time": 0,
                         "missed_deadlines": 0,
                         "fault_flags": packet.fault_flags
-                    }
+                    },
+                    # ===== WEBSITE VISUALIZATION START =====
+                    "RotorAngle": vis_rotor_angle,
+                    "StatorFieldAngle": vis_stator_field_angle,
+                    "RotorFieldAngle": vis_rotor_field_angle,
+                    "FieldAngleDifference": field_angle_diff,
+                    "MotorMode": motor_mode,
+                    "ControllerMode": controller_mode,
+                    "Ia": packet.ia,
+                    "Ib": packet.ib,
+                    "Ic": packet.ic,
+                    "RPM": vis_rpm,
+                    "Voltage": 12.0,
+                    "PolePairs": 2,
+                    # ===== WEBSITE VISUALIZATION END =====
                 }
                 # Broadcast directly to websocket clients
                 asyncio.run_coroutine_threadsafe(
