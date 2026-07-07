@@ -1,42 +1,48 @@
-// CurrentOutput.cpp - Analog feedback output from ESP32 to Arduino
-// Uses LEDC PWM + external RC low-pass filter to create smooth analog voltages.
-// The RC filter cutoff must be well above the motor's electrical frequency
-// but well below the PWM carrier frequency (39 kHz).
-// Recommended RC: R=1kΩ, C=100nF → fc = 1600 Hz
+// CurrentOutput.cpp — Layer 5 Implementation for ESP32
 #include "CurrentOutput.h"
 #include <Arduino.h>
 #include <math.h>
 
 void CurrentOutput::begin() {
-  // Attach LEDC PWM to all 4 output pins (ESP32 Arduino Core v3 API)
-  ledcAttach(PIN_IA_OUT,    LEDC_FREQ, LEDC_RESOLUTION);
-  ledcAttach(PIN_IB_OUT,    LEDC_FREQ, LEDC_RESOLUTION);
-  ledcAttach(PIN_IC_OUT,    LEDC_FREQ, LEDC_RESOLUTION);
-  ledcAttach(PIN_THETA_OUT, LEDC_FREQ, LEDC_RESOLUTION);
+  // Config DAC pins (pinMode is optional for DAC but safe)
+  pinMode(PIN_IA_OUT, OUTPUT);
+  pinMode(PIN_IB_OUT, OUTPUT);
 
-  // Initialize all outputs to midpoint (represents 0A and 0 angle)
-  ledcWrite(PIN_IA_OUT,    127);
-  ledcWrite(PIN_IB_OUT,    127);
-  ledcWrite(PIN_IC_OUT,    127);
+  // Attach LEDC PWM to remaining outputs (ESP32 Arduino Core LEDC API)
+  ledcAttach(PIN_IC_OUT, LEDC_FREQ, LEDC_BITS);
+  ledcAttach(PIN_THETA_OUT, LEDC_FREQ, LEDC_BITS);
+
+  // Initialize all to mid-scale or zero
+  dacWrite(PIN_IA_OUT, 127);
+  dacWrite(PIN_IB_OUT, 127);
+  ledcWrite(PIN_IC_OUT, 127);
   ledcWrite(PIN_THETA_OUT, 0);
 }
 
-void CurrentOutput::writeCurrent(float ia, float ib, float ic) {
-  // Map -CURRENT_PEAK_A..+CURRENT_PEAK_A -> 0..255 (mid = 127 = 0A)
-  const float scale = 127.5f / CURRENT_PEAK_A;
+void CurrentOutput::write(const MotorState& state) {
+  // Scale currents from -CURRENT_PEAK_A..+CURRENT_PEAK_A to 0..255
+  float scale = 127.5f / CURRENT_PEAK_A;
 
-  int da = (int)(ia * scale + 127.5f);
-  int db = (int)(ib * scale + 127.5f);
-  int dc = (int)(ic * scale + 127.5f);
+  int da = (int)(state.ia * scale + 127.5f);
+  int db = (int)(state.ib * scale + 127.5f);
+  int dc = (int)(state.ic * scale + 127.5f);
 
-  ledcWrite(PIN_IA_OUT, constrain(da, 0, 255));
-  ledcWrite(PIN_IB_OUT, constrain(db, 0, 255));
-  ledcWrite(PIN_IC_OUT, constrain(dc, 0, 255));
-}
+  da = constrain(da, 0, 255);
+  db = constrain(db, 0, 255);
+  dc = constrain(dc, 0, 255);
 
-void CurrentOutput::writeTheta(float theta_rad) {
-  // Map 0..2pi -> 0..255
-  float normalized = theta_rad / (2.0f * M_PI);
+  // Phase A and B go to actual DACs
+  dacWrite(PIN_IA_OUT, da);
+  dacWrite(PIN_IB_OUT, db);
+
+  // Phase C goes to LEDC PWM (needs external RC filter)
+  ledcWrite(PIN_IC_OUT, dc);
+
+  // Map 0..2π to 0..255
+  float normalized = state.elecAngle / (2.0f * M_PI);
   int duty = (int)(normalized * 255.0f);
-  ledcWrite(PIN_THETA_OUT, constrain(duty, 0, 255));
+  duty = constrain(duty, 0, 255);
+
+  // Theta output goes to LEDC PWM (needs external RC filter)
+  ledcWrite(PIN_THETA_OUT, duty);
 }

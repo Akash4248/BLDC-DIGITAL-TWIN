@@ -368,7 +368,7 @@ export function MagneticField({ state, onHover }: { state: MotorState; onHover: 
 
   // Reusable 3D arrow
   const Arrow = ({ color, length, angle }: { color: string, length: number, angle: number }) => (
-    <group rotation={[0, -angle, 0]} position={[0, 0.5, 0]}>
+    <group rotation={[0, angle, 0]} position={[0, 0.5, 0]}>
       {/* shaft */}
       <mesh position={[length / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
         <cylinderGeometry args={[0.05, 0.05, length, 16]} />

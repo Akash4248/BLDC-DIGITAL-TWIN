@@ -1,20 +1,25 @@
 #pragma once
 // ============================================================
-// CurrentOutput.h - Analog current and theta output to Arduino
-// Uses ESP32 LEDC (PWM) to synthesize analog voltages via RC filter.
+// CurrentOutput.h — Layer 5: Send Ia, Ib, Ic, Theta to Arduino
+//
+// GPIO25 (DAC1) → Ia  → Arduino A0  (true DAC, no RC needed)
+// GPIO26 (DAC2) → Ib  → Arduino A1  (true DAC, no RC needed)
+// GPIO4  (LEDC) → Ic  → RC filter → Arduino A2
+// GPIO5  (LEDC) → Theta → RC filter → Arduino A3
+//
+// Voltage mapping (0..3.3V on a 5V Arduino = ADC 0..675):
+//   Currents: -CURRENT_PEAK_A → 0V (DAC 0),  0A → 1.65V (DAC 127),  +PEAK → 3.3V (DAC 255)
+//   Theta:    0 rad → 0V (DAC 0),  2π → 3.3V (DAC 255)
 // ============================================================
+#include <Arduino.h>
 #include "Config.h"
+#include "MotorState.h"
 
 class CurrentOutput {
  public:
-  CurrentOutput() = default;
-
-  // Configure LEDC PWM channels for all 4 outputs (Ia, Ib, Ic, Theta)
+  // Configure DAC and LEDC PWM channels
   void begin();
 
-  // Write phase currents (-CURRENT_PEAK_A..+CURRENT_PEAK_A) -> 0..3.3V PWM
-  void writeCurrent(float ia, float ib, float ic);
-
-  // Write electrical angle (0..2pi) -> 0..3.3V PWM
-  void writeTheta(float theta_rad);
+  // Write phase currents and electrical angle to hardware outputs
+  void write(const MotorState& state);
 };

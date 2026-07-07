@@ -12,6 +12,7 @@ type MotorGlbAssemblyProps = {
   state: MotorState
   mode: MotorViewMode
   sectionClipping: boolean
+  onHover: (target: HoverTarget | null, position?: [number, number, number]) => void
 }
 
 type PaletteEntry = {
@@ -111,7 +112,7 @@ function assignRoleMaterial(descriptor: MotorMeshDescriptor, temperature: number
   return { material, opacity, clipping: sectionClipping }
 }
 
-export function MotorGlbAssembly({ state, mode, sectionClipping }: MotorGlbAssemblyProps) {
+export function MotorGlbAssembly({ state, mode, sectionClipping, onHover }: MotorGlbAssemblyProps) {
   const { scene } = useGLTF(MOTOR_MODEL_URL) as { scene: THREE.Group }
   const clonedScene = useMemo(() => SkeletonUtils.clone(scene) as THREE.Group, [scene])
   const mapping = useMemo(() => analyzeMotorModel(clonedScene), [clonedScene])
@@ -150,8 +151,26 @@ export function MotorGlbAssembly({ state, mode, sectionClipping }: MotorGlbAssem
       descriptor.mesh.userData.basePosition = descriptor.basePosition.clone()
       descriptor.mesh.userData.baseRotation = descriptor.baseRotation.clone()
       descriptor.mesh.userData.baseScale = descriptor.baseScale.clone()
+
+      // Assign interactive pointer events directly to standard Three.js meshes
+      descriptor.mesh.onPointerOver = (event: any) => {
+        event.stopPropagation()
+        let targetRole: HoverTarget | null = null
+        if (descriptor.role === 'bearings') targetRole = 'bearing'
+        else if (descriptor.role === 'windings') targetRole = 'phaseA' // map to winding phase
+        else if (descriptor.role === 'endcap') targetRole = 'housing'
+        else if (descriptor.role === 'misc') targetRole = 'housing'
+        else targetRole = descriptor.role as HoverTarget
+
+        if (targetRole) {
+          onHover(targetRole, [event.point.x, event.point.y, event.point.z])
+        }
+      }
+      descriptor.mesh.onPointerOut = (event: any) => {
+        onHover(null)
+      }
     }
-  }, [mapping.descriptors, mode, sectionClipping, state.temperature])
+  }, [mapping.descriptors, mode, sectionClipping, state.temperature, onHover])
 
   useFrame((_, delta) => {
     const smoothing = 1 - Math.exp(-delta * 8)
@@ -162,9 +181,22 @@ export function MotorGlbAssembly({ state, mode, sectionClipping }: MotorGlbAssem
       const targetPosition = descriptor.basePosition.clone().add(offset)
       descriptor.mesh.position.lerp(targetPosition, smoothing)
       descriptor.mesh.scale.lerp(descriptor.baseScale, smoothing)
-      descriptor.mesh.rotation.x = THREE.MathUtils.lerp(descriptor.mesh.rotation.x, descriptor.baseRotation.x, smoothing)
-      descriptor.mesh.rotation.y = THREE.MathUtils.lerp(descriptor.mesh.rotation.y, descriptor.baseRotation.y, smoothing)
-      descriptor.mesh.rotation.z = THREE.MathUtils.lerp(descriptor.mesh.rotation.z, descriptor.baseRotation.z, smoothing)
+
+      if (descriptor.role === 'rotor' || descriptor.role === 'shaft') {
+        // Rotate the rotor and shaft meshes in standard, exploded, and cutaway modes
+        // based on the actual physical rotorAngle
+        if (axis === 'y') {
+          descriptor.mesh.rotation.y = THREE.MathUtils.damp(descriptor.mesh.rotation.y, state.rotorAngle, 9.5, delta)
+        } else if (axis === 'z') {
+          descriptor.mesh.rotation.z = THREE.MathUtils.damp(descriptor.mesh.rotation.z, state.rotorAngle, 9.5, delta)
+        } else {
+          descriptor.mesh.rotation.x = THREE.MathUtils.damp(descriptor.mesh.rotation.x, state.rotorAngle, 9.5, delta)
+        }
+      } else {
+        descriptor.mesh.rotation.x = THREE.MathUtils.lerp(descriptor.mesh.rotation.x, descriptor.baseRotation.x, smoothing)
+        descriptor.mesh.rotation.y = THREE.MathUtils.lerp(descriptor.mesh.rotation.y, descriptor.baseRotation.y, smoothing)
+        descriptor.mesh.rotation.z = THREE.MathUtils.lerp(descriptor.mesh.rotation.z, descriptor.baseRotation.z, smoothing)
+      }
     }
   })
 

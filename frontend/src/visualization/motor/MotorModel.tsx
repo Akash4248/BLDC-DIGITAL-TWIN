@@ -3,18 +3,13 @@ import type { MotorState } from '../../app/types'
 import type { HoverTarget } from './types'
 import type { MotorViewMode } from './modelMapper'
 import {
-  Bearing,
   CurrentFlow,
   Encoder,
   HallIndicators,
   MagneticField,
   MotorLabels,
-  Rotor,
-  Shaft,
   TorqueArrow,
-  TemperatureShell,
   PwmIndicators,
-  Windings,
 } from './parts'
 import { MotorGlbAssembly } from './MotorGlbAssembly'
 
@@ -51,13 +46,7 @@ export function MotorModel({ state, mode }: { state: MotorState; mode: MotorView
 
   return (
     <group position={[0, -0.1, 0]} scale={1.08}>
-      <MotorGlbAssembly state={state} mode={mode} sectionClipping={sectionClipping} />
-      <TemperatureShell temperature={state.temperature} mode={mode} />
-      <Rotor state={state} onHover={handleHover} mode={mode} />
-      <Shaft state={state} onHover={handleHover} mode={mode} />
-      <Bearing position={[0, -1.58, 0]} state={state} onHover={handleHover} mode={mode} />
-      <Bearing position={[0, 1.58, 0]} state={state} onHover={handleHover} mode={mode} />
-      <Windings state={state} onHover={handleHover} mode={mode} />
+      <MotorGlbAssembly state={state} mode={mode} sectionClipping={sectionClipping} onHover={handleHover} />
       <CurrentFlow state={state} />
       <MagneticField state={state} onHover={handleHover} />
       <TorqueArrow state={state} />

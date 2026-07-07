@@ -1,63 +1,67 @@
 /*******************************************************************************
- * firmware.ino - ESP32 Motor Digital Twin entry point
+ * firmware.ino - ESP32 Motor Digital Twin (HIL)
  *
  * System: Dual-MCU Hardware-in-the-Loop (HIL) Digital Twin
- * Role  : Motor Digital Twin (Receives AH/AL/BH/BL/CH/CL, outputs Ia/Ib/Ic/Theta)
+ * Role  : Motor Digital Twin (Receives gate signals from Arduino, runs
+ *         continuous PMSM simulation at 10 kHz, and outputs analog feedback)
  *
- * Inputs (from Arduino via voltage divider 5V->3.3V):
- *   GPIO 32 = AH  (Phase A High-side gate)
- *   GPIO 14 = AL  (Phase A Low-side gate)
- *   GPIO 33 = BH  (Phase B High-side gate)
- *   GPIO 27 = BL  (Phase B Low-side gate)
- *   GPIO 25 = CH  (Phase C High-side gate)
- *   GPIO 26 = CL  (Phase C Low-side gate)
+ * Architecture Layers:
+ *   1. Gate Reading: Inverter::readGates() reads AH, BH, CH pins
+ *   2. Decode Inverter: Inverter::decode() computes Va, Vb, Vc
+ *   3. Motor Model: MotorModel::step() runs Forward Euler PMSM state space equations
+ *   4. Feedback Output: CurrentOutput::writeCurrent/writeTheta writes currents/theta
  *
- * Outputs (to Arduino via RC low-pass filter):
- *   GPIO 4  = Ia    (Phase A Current, PWM+RC -> analog)
- *   GPIO 18 = Ib    (Phase B Current, PWM+RC -> analog)
- *   GPIO 19 = Ic    (Phase C Current, PWM+RC -> analog)
- *   GPIO 21 = Theta (Electrical angle 0..2pi, PWM+RC -> 0..3.3V)
- *
- * USB Serial: Sends telemetry to PC backend (BLDC Digital Twin Dashboard)
- *
- * Simulation runs at 10 kHz (100 µs per step) using esp_timer ISR.
+ * Timer ISR triggers every 100 µs (10 kHz) via esp_timer.
  ******************************************************************************/
 
 #include <Arduino.h>
 #include <esp_timer.h>
+#include <Wire.h>
+#include <Arduino.h>
+#include <Wire.h>
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
 #include "src/Config.h"
-#include "src/Inverter.h"
-#include "src/MotorModel.h"
-#include "src/Encoder.h"
-#include "src/CurrentOutput.h"
+#include "src/SimulationEngine.h"
+#include "src/TelemetryManager.h"
 
-// ----- Module Instances -----
-static Inverter          inverter;
-static MotorModel        motor;
-static GateSignalReader  gateReader;
-static CurrentOutput     currentOut;
+#define AS5600_SLAVE_ADDR 0x36
 
-// ----- Timing -----
+// --- Global Digital Twin and Telemetry Manager Instances ---
+static SimulationEngine  engine;
+static TelemetryManager telemetry;
+
+// --- Timing and State Variables ---
 static volatile bool simTrigger = false;
-static uint32_t telemTimer = 0;
+static uint32_t stepCounter = 0;
 
-// ----- Telemetry Packet (binary, for PC backend) -----
-#pragma pack(push, 1)
-struct TelemetryPacket {
-  uint16_t magic;        // 0xAA55
-  uint8_t  type;         // 0x01
-  uint8_t  length;       // payload bytes
-  uint16_t seq;
-  uint32_t unused;
-  float    ia, ib, ic;
-  float    rotor_angle;
-  float    rotor_speed;
-};
-#pragma pack(pop)
+// --- AS5600 Emulation State ---
+volatile uint8_t i2cRegisterPointer = 0;
+volatile uint16_t latestRawAngle = 0;
 
-static uint16_t seqNum = 0;
+// --- I2C Slave Callbacks for AS5600 Emulation ---
+void onI2CReceive(int numBytes) {
+  if (numBytes > 0) {
+    i2cRegisterPointer = Wire.read();
+    // Flush remaining bytes if any
+    while (Wire.available()) {
+      Wire.read();
+    }
+  }
+}
 
-// ----- esp_timer ISR: fires every 100 µs (10 kHz) -----
+void onI2CRequest() {
+  // Pack the 12-bit mechanical angle (0..4095) in MSB-first format
+  uint8_t responseData[2];
+  responseData[0] = (latestRawAngle >> 8) & 0x0F;
+  responseData[1] = latestRawAngle & 0xFF;
+  Wire.write(responseData, 2);
+}
+
+// ============================================================================
+// Timer ISR callback - Fires every 100 µs (10 kHz)
+// Runs in the ESP32 timer task context.
+// ============================================================================
 static void IRAM_ATTR onSimTimer(void* arg) {
   simTrigger = true;
 }
@@ -66,70 +70,53 @@ static void IRAM_ATTR onSimTimer(void* arg) {
 // setup()
 // ============================================================================
 void setup() {
+  // Disable brownout detector to bypass startup voltage transient dips
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+
+  // Initialize Serial for high-speed binary telemetry
   Serial.begin(SERIAL_BAUD);
 
-  // Initialize gate signal reader (attaches interrupts on AH, BH, CH)
-  gateReader.begin();
+  // Initialize I2C Slave at AS5600 address (0x36) on default SDA/SCL pins (GPIO 21 / 22)
+  Wire.begin(AS5600_SLAVE_ADDR);
+  Wire.onReceive(onI2CReceive);
+  Wire.onRequest(onI2CRequest);
 
-  // Initialize analog feedback outputs (LEDC PWM)
-  currentOut.begin();
+  // Initialize unified simulation engine
+  engine.begin();
 
-  // Create a repeating timer at 100 µs (10 kHz)
-  esp_timer_handle_t simTimerHandle;
+  // Setup periodic simulation timer at 100 µs intervals (10 kHz)
+  esp_timer_handle_t timerHandle;
   esp_timer_create_args_t timerArgs = {
     .callback        = onSimTimer,
     .arg             = nullptr,
     .dispatch_method = ESP_TIMER_TASK,
-    .name            = "sim_timer",
+    .name            = "simulation_timer",
     .skip_unhandled_events = true
   };
-  esp_timer_create(&timerArgs, &simTimerHandle);
-  esp_timer_start_periodic(simTimerHandle, 100); // 100 µs = 10 kHz
+  esp_timer_create(&timerArgs, &timerHandle);
+  esp_timer_start_periodic(timerHandle, 100); // 100 µs
 
-  Serial.println("ESP32 Motor Digital Twin started at 10 kHz");
+  // Print startup notification (note: may corrupt the very first binary package
+  // but helpful for developer debugging)
+  delay(100);
+  Serial.println("\n--- ESP32 Motor Digital Twin Core Initialized at 10 kHz ---");
 }
 
 // ============================================================================
 // loop()
 // ============================================================================
 void loop() {
-  if (!simTrigger) return;
-  simTrigger = false;
+  if (simTrigger) {
+    simTrigger = false;
 
-  // --- Step 1: Read gate signals -> compute duty cycles ---
-  float dutyA = gateReader.getDutyA();
-  float dutyB = gateReader.getDutyB();
-  float dutyC = gateReader.getDutyC();
+    // Run one step of the coordinated simulation engine
+    engine.step();
 
-  // --- Step 2: Inverter model -> compute phase voltages ---
-  inverter.update(dutyA, dutyB, dutyC, VDC);
-  const InverterState& inv = inverter.getState();
-
-  // --- Step 3: Motor model -> advance simulation by one step ---
-  motor.step(inv.va, inv.vb, inv.vc, SIM_TS);
-  const MotorState& st = motor.getState();
-
-  // --- Step 4: Output Ia, Ib, Ic, Theta back to Arduino ---
-  currentOut.writeCurrent(st.ia, st.ib, st.ic);
-  currentOut.writeTheta(st.elecAngle);
-
-  // --- Step 5: Send telemetry to PC dashboard (every 1 ms) ---
-  telemTimer++;
-  if (telemTimer >= (TELEM_INTERVAL_US / (uint32_t)(SIM_TS * 1000000.0f))) {
-    telemTimer = 0;
-
-    TelemetryPacket pkt;
-    pkt.magic       = 0xAA55;
-    pkt.type        = 0x01;
-    pkt.length      = sizeof(TelemetryPacket) - 4; // exclude magic+type+length
-    pkt.seq         = seqNum++;
-    pkt.unused      = 0;
-    pkt.ia          = st.ia;
-    pkt.ib          = st.ib;
-    pkt.ic          = st.ic;
-    pkt.rotor_angle = st.elecAngle;
-    pkt.rotor_speed = st.rotorSpeedRPM;
-
-    Serial.write((const uint8_t*)&pkt, sizeof(pkt));
+    // Send high-speed binary telemetry at configured interval (100 Hz)
+    stepCounter++;
+    if (stepCounter >= TELEM_EVERY_N) {
+      stepCounter = 0;
+      telemetry.send(engine.getState());
+    }
   }
 }

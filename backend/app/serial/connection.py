@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SerialConfig:
     port: str
-    baudrate: int = 921600
+    baudrate: int = 115200
     read_timeout_s: float = 0.1
     reconnect_delay_s: float = 1.0
     max_reconnect_delay_s: float = 5.0

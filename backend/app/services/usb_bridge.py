@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 @dataclass(frozen=True)
 class UsbBridgeConfig:
     port: str
-    baudrate: int = 921600
+    baudrate: int = 115200
     read_timeout_s: float = 0.1
     reconnect_delay_s: float = 1.0
     max_reconnect_delay_s: float = 5.0
@@ -30,7 +30,7 @@ class UsbBridgeConfig:
             logger.info("FOC_USB_SERIAL_PORT not set, defaulting to COM3")
             port = "COM3"
 
-        baudrate = int(os.getenv("FOC_USB_BAUDRATE", "921600"))
+        baudrate = int(os.getenv("FOC_USB_BAUDRATE", "115200"))
         return cls(port=port, baudrate=baudrate)
 
     def serial_config(self) -> SerialConfig:
@@ -94,10 +94,14 @@ class DigitalTwinUsbBridge:
 
         def handle_packet(packet: TwinStatePacket | TelemetryPacket) -> None:
             if isinstance(packet, TwinStatePacket):
+                hall_a = bool(packet.hall & 0x01)
+                hall_b = bool(packet.hall & 0x02)
+                hall_c = bool(packet.hall & 0x04)
+                
                 payload = {
                     "telemetry": {
                         "sequence": packet.sequence,
-                        "timestamp_us": 0,
+                        "timestamp_us": packet.timestamp_us,
                         "duty_a": 0, "duty_b": 0, "duty_c": 0, "vdc": 0
                     },
                     "current": {
@@ -107,13 +111,20 @@ class DigitalTwinUsbBridge:
                         "adc_a": 0, "adc_b": 0, "adc_c": 0
                     },
                     "speed": packet.rotor_speed,
-                    "torque": 0.0,
+                    "torque": packet.torque,
+                    "temperature": packet.temperature,
                     "rotor_angle": packet.rotor_angle,
-                    "hall": {"a": False, "b": False, "c": False},
-                    "encoder": {"a": False, "b": False, "index": False},
+                    "hall": {"a": hall_a, "b": hall_b, "c": hall_c},
+                    "encoder": {
+                        "a": False,
+                        "b": False,
+                        "index": False,
+                        "raw": packet.encoder
+                    },
                     "diagnostics": {
-                        "max_exec_time": getattr(packet, "max_exec_time", 0),
-                        "missed_deadlines": getattr(packet, "missed_deadlines", 0)
+                        "max_exec_time": 0,
+                        "missed_deadlines": 0,
+                        "fault_flags": packet.fault_flags
                     }
                 }
                 # Broadcast directly to websocket clients

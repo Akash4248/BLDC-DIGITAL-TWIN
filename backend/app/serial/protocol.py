@@ -55,13 +55,18 @@ class TelemetryPacket:
 @dataclass(frozen=True)
 class TwinStatePacket:
     sequence: int
+    timestamp_us: int
     ia: float
     ib: float
     ic: float
-    rotor_angle: float
     rotor_speed: float
-    max_exec_time: int
-    missed_deadlines: int
+    rotor_angle: float
+    electrical_angle: float
+    torque: float
+    temperature: float
+    hall: int
+    encoder: int
+    fault_flags: int
 
 
 def _pack_header(packet_type: PacketType, sequence: int, payload_len: int) -> bytes:
@@ -95,14 +100,19 @@ def encode_telemetry(packet: TelemetryPacket) -> bytes:
 
 def encode_twin_state(packet: TwinStatePacket) -> bytes:
     payload = struct.pack(
-        "<fffffHH",
+        "<QffffffffBHI",
+        packet.timestamp_us,
         packet.ia,
         packet.ib,
         packet.ic,
-        packet.rotor_angle,
         packet.rotor_speed,
-        packet.max_exec_time,
-        packet.missed_deadlines,
+        packet.rotor_angle,
+        packet.electrical_angle,
+        packet.torque,
+        packet.temperature,
+        packet.hall,
+        packet.encoder,
+        packet.fault_flags,
     )
     header = _pack_header(PacketType.TWIN_STATE, packet.sequence, len(payload))
     crc = crc16_ccitt_false(header[2:] + payload)
@@ -135,7 +145,7 @@ def _validate_and_split(frame: bytes) -> Tuple[PacketType, int, bytes]:
 
     if packet_type == PacketType.TELEMETRY and payload_len != 24:
         raise PacketValidationError("invalid telemetry payload length")
-    if packet_type == PacketType.TWIN_STATE and payload_len != 24:
+    if packet_type == PacketType.TWIN_STATE and payload_len != 47:
         raise PacketValidationError("invalid twin state payload length")
 
     return packet_type, sequence, payload
@@ -155,16 +165,34 @@ def decode_frame(frame: bytes) -> TelemetryPacket | TwinStatePacket:
             vdc=vdc,
         )
 
-    ia, ib, ic, rotor_angle, rotor_speed, max_exec_time, missed_deadlines = struct.unpack("<fffffHH", payload)
+    (
+        timestamp_us,
+        ia,
+        ib,
+        ic,
+        rotor_speed,
+        rotor_angle,
+        electrical_angle,
+        torque,
+        temperature,
+        hall,
+        encoder,
+        fault_flags,
+    ) = struct.unpack("<QffffffffBHI", payload)
     return TwinStatePacket(
         sequence=sequence,
+        timestamp_us=timestamp_us,
         ia=ia,
         ib=ib,
         ic=ic,
-        rotor_angle=rotor_angle,
         rotor_speed=rotor_speed,
-        max_exec_time=max_exec_time,
-        missed_deadlines=missed_deadlines,
+        rotor_angle=rotor_angle,
+        electrical_angle=electrical_angle,
+        torque=torque,
+        temperature=temperature,
+        hall=hall,
+        encoder=encoder,
+        fault_flags=fault_flags,
     )
 
 

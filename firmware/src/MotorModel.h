@@ -1,46 +1,33 @@
 #pragma once
 // ============================================================
-// MotorModel.h - Complete PMSM/BLDC Electrical + Mechanical Model
-// Solves motor differential equations at 10 kHz using Forward Euler.
+// MotorModel.h — Layer 4: Complete PMSM electrical + mechanical model
+// Simulates a surface-mounted PMSM using Forward Euler integration.
 // ============================================================
-
 #include "Config.h"
-
-struct MotorState {
-  // Electrical
-  float ia, ib, ic;         // Phase currents (A)
-  float torqueElec;          // Electromagnetic torque (N.m)
-
-  // Mechanical
-  float rotorSpeedRad;      // Mechanical rotor speed (rad/s)
-  float rotorSpeedRPM;      // Mechanical rotor speed (RPM)
-  float mechAngle;          // Mechanical rotor angle (rad)
-  float elecAngle;          // Electrical rotor angle (rad), = mechAngle * pole_pairs
-};
+#include "MotorState.h"
 
 class MotorModel {
  public:
   MotorModel();
 
-  // Step the motor simulation forward by one time step.
-  // va, vb, vc: applied phase voltages (V) from inverter
-  // dt: time step (s)
-  void step(float va, float vb, float vc, float dt);
+  // Advance simulation by one time step.
+  // va, vb, vc: phase-to-neutral voltages from inverter model (V)
+  // dt: timestep (s)
+  void step(MotorState& state, float dt);
 
-  // Apply an external mechanical load torque (N.m)
+  // Reset internal integration state to zero
+  void reset();
+
+  // Set an external load torque (N·m). Default = 0.
   void setLoadTorque(float tl) { loadTorque_ = tl; }
 
-  const MotorState& getState() const { return state_; }
-
  private:
-  MotorState state_{};
+  // State variables for Euler integration
+  float ia_, ib_, ic_;    // Phase currents (A)
+  float omega_;           // Mechanical speed (rad/s)
+  float thetaMech_;       // Mechanical angle (rad)
+
   float loadTorque_;
 
-  // Internal phase currents (state variables for Euler integration)
-  float ia_, ib_, ic_;       // Phase currents (A)
-  float mechSpeed_;          // Mechanical speed (rad/s)
-  float mechAngle_;          // Mechanical angle (rad)
-
-  // Helper: wrap angle to 0..2pi
-  float wrapAngle(float angle);
+  static float wrapAngle(float a);
 };

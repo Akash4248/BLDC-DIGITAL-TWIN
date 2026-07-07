@@ -35,6 +35,7 @@ class FOCController {
   float theta_;       // Electrical rotor angle (radians, 0..2pi)
   float id_, iq_;     // DQ currents
   float mechSpeedRPM_;
+  float openLoopTheta_;  // Internal open-loop angle accumulator
 
   // Target
   float targetSpeedRad_; // Target speed in rad/s
