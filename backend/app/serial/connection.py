@@ -83,7 +83,11 @@ class ReconnectingSerialLink:
                 if not chunk:
                     continue
 
+                # --- DEBUG LOGGING ---
+                logger.info("Raw bytes received: %s", chunk.hex())
+
                 for packet in self._buffer.feed(chunk):
+                    logger.info("Successfully parsed packet: %s", type(packet).__name__)
                     on_packet(packet)
             except (SerialException, ProtocolError) as exc:
                 logger.warning("serial read error on %s: %s", self._config.port, exc)

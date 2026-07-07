@@ -1,40 +1,28 @@
-# Hardware-in-the-Loop Implementation Plan
+# Implementation Plan: Closing the Feedback Loop
 
-You are setting up a highly professional **3-Board Hardware-in-the-Loop (HIL)** testbench!
-1. **Arduino UNO #1 (FOC Controller):** Generates physical 5V PWM pulses.
-2. **Arduino UNO #2 (Bridge):** Reads the 5V PWM pulses, calculates the duty cycles, and sends them via 5V UART TX to the ESP32 RX (which is 3.3V safe if you use a simple resistor divider).
-3. **ESP32 (Digital Twin):** Calculates the motor physics based on the bridge data, and streams the results to the PC dashboard via USB.
+To make this a true, professional Hardware-in-the-Loop system as outlined in your architecture, we need to implement the physical feedback wires. 
+
+The ESP32 will now simulate the analog currents and digital encoder pulses, and the Arduino will physically read them!
 
 ## Open Questions
 
-> [!IMPORTANT]
-> - Are you using an **ESP32** or an **ESP8266**? (The plan assumes ESP32 since it has multiple hardware serial ports like `Serial2`, whereas the ESP8266 does not).
-> - For Arduino UNO #2 to ESP32 communication, I plan to use a fast 115200 baud binary packet. You will need to wire Arduino #2 `TX` to ESP32 `RX2` (GPIO 16). Does this wiring work for you?
+> [!WARNING]  
+> - **RC Filters:** The ESP32 will generate high-frequency PWM for `Ia, Ib, Ic`. You MUST build three simple RC Low-Pass Filters (e.g., a 1kΩ resistor and a 0.1µF capacitor) to smooth these into steady analog voltages before feeding them into the Arduino's A0, A1, A2. Do you have these components?
+> - **Arduino Pin Conflict:** Your Arduino currently uses **Pin 3** for the `AH` PWM pulse. The UNO only has hardware interrupts on Pins 2 and 3. Since Pin 3 is taken, I will use **Pin 2 (Hardware Interrupt)** for Encoder A, and **Pin 4 (Pin Change Interrupt)** for Encoder B. Is Pin 4 available?
 
 ## Proposed Changes
 
-### Arduino UNO #2 (Bridge Sketch)
-I will write a brand new, standalone Arduino sketch (`bridge/PWM_to_Serial_Bridge.ino`) for your second UNO. 
-- It will use a highly optimized register-polling loop (`PIND` and `PINB`) to sample the High-side PWM pins (3, 6, and 10) thousands of times per millisecond.
-- This guarantees an extremely accurate duty-cycle measurement without crashing the Arduino or relying on complex interrupts.
-- It will send a tiny 6-byte binary packet `[Header1, Header2, DutyA, DutyB, DutyC, Checksum]` to the ESP32 at 115200 baud.
+### 1. ESP32 Side (`firmware/firmware.ino` & `DigitalTwin.cpp`)
+- **Simulation Speed:** I will increase the ESP32 simulation speed to 10 kHz (100 µs loop) to match your architecture document.
+- **Analog Currents (`Ia, Ib, Ic`):** I will configure ESP32 `ledc` to output 39 kHz PWM on GPIO 4, 18, and 19. The PWM duty cycle will represent the simulated phase currents (0V = -Max Amps, 1.65V = 0 Amps, 3.3V = +Max Amps).
+- **Encoder Outputs (`A, B, Z`):** I will map the ESP32's simulated Encoder state to GPIO 21, 22, and 23. To ensure the 10 kHz simulation loop can accurately generate the pulses without aliasing, I will set the Encoder resolution to 36 PPR (Pulses Per Revolution).
 
-### ESP32 (Digital Twin Firmware)
-
-#### [MODIFY] `firmware.ino`
-- Initialize `Serial2` (Hardware UART) to receive data from the Bridge.
-- Parse the 6-byte binary packet from the Bridge to extract real-time `dutyA`, `dutyB`, and `dutyC`.
-- Continue listening to `Serial` (USB to PC) to receive Load Torque and Fault parameters from the dashboard.
-- Feed the merged data (Bridge Duty Cycles + PC Load Torque) into `twin.step()`.
-
-#### [MODIFY] `src/main/DigitalTwin.cpp`
-- Expose a method to allow `firmware.ino` to inject the externally read Duty Cycles, overriding the default behavior of reading them entirely from the PC telemetry packet.
+### 2. Arduino Side (New `FOC_Controller.ino`)
+- I will create a brand new `FOC_Controller.ino` sketch for you in the workspace.
+- **Encoder Interrupts:** It will replace the old "Analog A3 Angle" code with true Quadrature Encoder interrupt logic on Pins 2 and 4.
+- **ADC Scaling:** It will read A0, A1, and A2, and mathematically map the 0-3.3V feedback signals back into true Amperage values for the PI Controllers.
 
 ## Verification Plan
-
-### Automated/Code Verification
-- I will verify that the binary packet parsing on the ESP32 includes checksum validation so noise on the RX line doesn't crash the physics simulation.
-
-### Manual Verification
-- You will flash Arduino #2 and open the Serial Plotter to verify it accurately reads the PWMs from Arduino #1.
-- You will flash the ESP32, wire the TX/RX, and verify the Dashboard reacts to the physical FOC controller!
+1. I will write the code and provide you with the new wiring pinout.
+2. You will flash the ESP32 and Arduino, and build the 3 RC filters.
+3. You will verify that the Arduino accurately tracks the ESP32's simulated position and current!

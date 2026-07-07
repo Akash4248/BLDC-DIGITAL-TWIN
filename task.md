@@ -1,4 +1,5 @@
-- `[x]` Create `PWM_to_Serial_Bridge.ino` for Arduino UNO #2
-- `[x]` Modify `DigitalTwin.cpp` to support external duty cycle injection
-- `[x]` Modify `firmware.ino` to read from ESP32 `Serial2` and inject data into the Twin
-- `[x]` Verify compilation and syntax
+- `[x]` Create `FOC_Controller\FOC_Controller.ino` with Quadrature Encoder interrupts
+- `[x]` Update `firmware.ino` to 10kHz simulation loop and downsample telemetry
+- `[x]` Add `ledc` PWM output for `Ia, Ib, Ic` on ESP32 (Pins 4, 18, 19)
+- `[x]` Add Digital output for Encoder `A, B, Z` on ESP32 (Pins 21, 22, 23)
+- `[x]` Write Walkthrough with wiring instructions

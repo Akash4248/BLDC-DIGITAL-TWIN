@@ -28,6 +28,10 @@ class DigitalTwin {
   
   // Access subsystems for configuration
   FaultManager& getFaults() { return faults_; }
+  
+  // Access internal state for HIL feedback
+  const ElectricalState& getElectricalState() const { return electrical_.getState(); }
+  const EncoderState& getEncoderState() const { return encoder_.getState(); }
 
   // Inject timing diagnostics to be sent in the next telemetry packet
   void setDiagnostics(uint16_t maxExecTime, uint16_t missedDeadlines);

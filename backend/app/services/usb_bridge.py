@@ -27,7 +27,8 @@ class UsbBridgeConfig:
     def from_env(cls) -> "UsbBridgeConfig | None":
         port = os.getenv("FOC_USB_SERIAL_PORT", "").strip()
         if not port:
-            return None
+            logger.info("FOC_USB_SERIAL_PORT not set, defaulting to COM3")
+            port = "COM3"
 
         baudrate = int(os.getenv("FOC_USB_BAUDRATE", "921600"))
         return cls(port=port, baudrate=baudrate)

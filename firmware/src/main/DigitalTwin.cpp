@@ -36,7 +36,7 @@ void DigitalTwin::applyDefaultConfig() {
   hall_.begin(hCfg);
 
   EncoderConfig encCfg;
-  encCfg.ppr = Config::ENCODER_PPR;
+  encCfg.ppr = 36; // Lower PPR (36) to prevent aliasing at 10kHz simulation loops
   encCfg.indexOffset = 0.0f;
   encoder_.begin(encCfg);
 
@@ -148,30 +148,25 @@ void DigitalTwin::step(float dt) {
   bool hallCFinal = faults_.applyHallFail(hState.c, faults_.getConfig().hallCFail);
   bool encAFinal = faults_.applyEncoderFail(encState.a);
   
-  // 11. Transmit Feedback
-  TwinProtocol::TwinStatePacket txPacket;
-  txPacket.sequence = tele.sequence; // Echo sequence for latency tracking
-  
-  // In a physical Arduino, we would digitalWrite() the hall/encoder states to 5V output pins,
-  // and analogWrite() the current sensor values. 
-  // Here we pack them into the telemetry struct for the ESP32 bridge.
-  
-  txPacket.ia = currentA_.getState().analogVoltage; // Sending voltage out for ESP32 ADC
-  txPacket.ib = currentB_.getState().analogVoltage;
-  txPacket.ic = currentC_.getState().analogVoltage;
-  
-  txPacket.rotorAngle = mState.rotorAngle;
-  txPacket.rotorSpeed = mState.rotorSpeed;
-  
-  txPacket.maxExecTime = diagMaxExecTime_;
-  txPacket.missedDeadlines = diagMissedDeadlines_;
-  
-  // Note: The physical 5V pins would be actuated here in a real deployment
-  // digitalWrite(PIN_HALL_A, hallAFinal);
-  // analogWrite(PIN_DAC_IA, currentA_.getState().adcCounts >> 2); // 8-bit DAC example
-  
-  // Send state packet back via UART to ESP32
-  link_.sendTwinState(txPacket);
+  // 11. Transmit Feedback (Downsampled to 1kHz to avoid saturating UART)
+  static int teleCounter = 0;
+  if (++teleCounter >= 10) {
+    teleCounter = 0;
+    TwinProtocol::TwinStatePacket txPacket;
+    txPacket.sequence = tele.sequence; 
+    
+    txPacket.ia = currentA_.getState().analogVoltage; 
+    txPacket.ib = currentB_.getState().analogVoltage;
+    txPacket.ic = currentC_.getState().analogVoltage;
+    
+    txPacket.rotorAngle = mState.rotorAngle;
+    txPacket.rotorSpeed = mState.rotorSpeed;
+    
+    txPacket.maxExecTime = diagMaxExecTime_;
+    txPacket.missedDeadlines = diagMissedDeadlines_;
+    
+    link_.sendTwinState(txPacket);
+  }
 }
 
 } // namespace TwinSimulation
